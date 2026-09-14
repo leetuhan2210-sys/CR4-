@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEF26 — Tra cứu & Quản lý Khách mời</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* MỚI ĐỔI */
+.mini-lookup-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--teal-800);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: transform 0.2s;
+}
+.mini-lookup-btn:hover { transform: scale(1.05); }
+ 
+.mini-lookup-panel { position: fixed; bottom: 85px; right: 24px; width: 380px; /* Đã mở rộng */
+  background: #fff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 1px solid var(--line); padding: 16px; z-index: 100; display: none; flex-direction: column; gap: 12px; }
+.mini-lookup-panel.show { display: flex; } 
+.mini-lookup-panel h4 { margin: 0; font-size: 14px; color: var(--teal-900); } 
+.mini-lookup-panel input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; box-sizing: border-box; } 
+.mini-results { max-height: 250px; overflow-y: auto; font-size: 13px; } 
+.mini-item { padding: 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer; } 
+.mini-item:hover { background: #fafbfa; } 
+.mini-item .ma { font-weight: bold; color: var(--teal-700); font-size: 11px; } 
+.mini-fuzzy-msg { font-size: 12px; color: var(--gold-dark); font-style: italic; margin-bottom: 6px; }
+ 
+:root { --teal-900: #12312C; --teal-800: #1B4B43; --teal-700: #26635A; --teal-light: #E4EEEC; --paper: #F5F6F3; --paper-raised: #FFFFFF; --ink: #1F2523; --ink-soft: #5B655F; --line: #DDE2DD; --gold: #A9803F; --gold-soft: #F3E9D6; --gold-dark: #5C4321; --pic-badge: #8A6A2E; --danger: #C0392B; --warn: #D97706; --warn-light: #FEF3C7; --focus: #2E7D6D; }
+*  { box-sizing: border-box; } body { margin: 0; background: var(--paper); color: var(--ink); font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14.5px; line-height: 1.5; } a, button, input, select, textarea { font-family: inherit; } :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Topbar & Header */ .topbar { background: var(--paper-raised); border-bottom: 1px solid var(--line); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--ink-soft); } .brand-title { font-size: 14px; font-weight: 700; color: var(--teal-900); letter-spacing: .01em; display: flex; align-items: center; gap: 8px; } .brand-title span.sub { font-size: 12px; font-weight: 400; color: var(--ink-soft); border-left: 1px solid var(--line); padding-left: 8px; }
+/* Navigation Tabs */ .tabs { display: flex; background: var(--paper-raised); border-bottom: 1px solid var(--line); padding: 0 24px; position: sticky; top: 0; z-index: 10; } .tab-btn { padding: 14px 16px; border: none; background: none; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; border-bottom: 3px solid transparent; display: inline-flex; align-items: center; gap: 6px; transition: color .15s ease, border-color .15s ease; } .tab-btn:hover { color: var(--teal-800); } .tab-btn.active { color: var(--teal-800); border-bottom-color: var(--teal-800); } .badge { display: inline-block; background: var(--danger); color: #fff; border-radius: 20px; font-size: 11px; font-weight: 700; padding: 1px 7px; } .badge.warn { background: var(--gold); } .badge.muted { background:#9BA39D; }
+.wrap { 
+  max-width: 1200px; /* Hoặc 95% nếu bạn muốn nó luôn tràn sát viền màn hình */
+  margin: 0 auto; 
+  padding: 24px 20px 64px; 
+} .panel { display: none; } .panel.active { display: block; }
+/* Buttons & Controls */ button.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s ease; } .btn-primary { background: var(--teal-800); color: #fff; } .btn-primary:hover { background: var(--teal-700); } .btn-secondary { background: #fff; color: var(--ink); border-color: var(--line); } .btn-secondary:hover { background: var(--paper); border-color: #c9cfc9; } .btn-block { width: 100%; padding: 11px 16px; font-size: 14px; } .btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 5px; }
+/* Hiệu ứng thanh chạy % cho nút Lưu */
+.btn-saving {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none; /* Khóa không cho bấm nhiều lần */
+  opacity: 0.9;
+}
+.btn-saving::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.25);
+  /* Chạy từ từ đến 90% trong 4 giây và đợi server phản hồi */
+  animation: fake-progress 4s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+}
+@keyframes fake-progress {
+  0% { width: 0%; }
+  100% { width: 90%; } 
+}
+.btn-saving.done::before {
+  animation: none;
+  width: 100%;
+  transition: width 0.3s ease-out;
+}
+ 
+/* Search bar */ .search-bar { display: flex; gap: 8px; margin-bottom: 16px; } .search-bar input { flex: 1; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; background: #fff; } .search-bar input:focus { border-color: var(--focus); }
+/* Lists & Cards */ .card { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; } .card h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--ink); } .card .sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 8px; } .card .content { font-size: 13.5px; white-space: pre-wrap; color: var(--ink); margin-bottom: 12px; max-height: 120px; overflow-y: auto; background: #fafbfa; padding: 10px 12px; border-radius: 6px; border: 1px solid #ebf0eb; } .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.thread-link { font-size: 11.5px; font-weight: 500; color: var(--teal-700); text-decoration: none; margin-left: 8px; white-space: nowrap; } .thread-link:hover { text-decoration: underline; }
+.result-item { padding: 12px 16px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; cursor: pointer; background: #fff; transition: border-color .15s; } .result-item:hover { border-color: var(--teal-700); background: #fafbfa; } .result-item .name { font-weight: 600; font-size: 14.5px; } .result-item .meta { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+/* Identity Band (Profile Header) */ .identity { background: linear-gradient(155deg, var(--teal-900), var(--teal-800)); color: #F4F6F4; border-radius: 10px; padding: 24px 26px 22px; margin-bottom: 18px; } .identity-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; } .km-code { font-size: 12px; letter-spacing: .02em; font-weight: 600; background: rgba(255,255,255,.14); padding: 3px 9px; border-radius: 5px; color: #fff; } .identity h1 { font-family: 'Newsreader', Georgia, serif; font-weight: 600; font-style: italic; font-size: 28px; margin: 10px 0 4px; color: #fff; line-height: 1.25; } .identity .role-line { font-size: 14px; color: #D8E4E0; } .identity .role-line .org { color: #fff; font-weight: 500; }.classify-row { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 4px; }
+.badge-classify { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; color:#fff; }
+.badge-classify.c-guest { background:#2563EB; }   /* Khách mời - xanh dương */
+.badge-classify.c-vvip  { background:#DC2626; }   /* VVIP - đỏ */
+.badge-classify.c-vip   { background:#D97706; }   /* VIP - vàng (chừa sẵn) */
+.badge-classify.c-speaker { background:#16A34A; } /* Speaker - xanh lá */
+.badge-funded { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.4); }
+
+/* KM Phụ / KM Chính */ .km-phu-tag { margin-top: 14px; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--gold-soft); color: var(--gold-dark); border: 1px solid #D9BE8C; border-radius: 20px; padding: 5px 10px 5px 14px; font-size: 13px; font-weight: 500; } .km-phu-tag.warn { background: var(--warn-light); border-color: #FCD9A0; color: #92400E; } .km-phu-tag button { background: var(--gold-dark); color: #fff; border: none; border-radius: 14px; padding: 2px 9px; font-size: 12px; cursor: pointer; font-weight: 600; }
+.km-chinh-card { margin-top: 10px; background: #fff; color: var(--ink); border-radius: 8px; border: 1px solid var(--line); padding: 0; max-height: 0; overflow: hidden; opacity: 0; transition: max-height .22s ease, opacity .18s ease, padding .22s ease; } .km-chinh-card.open { max-height: 240px; opacity: 1; padding: 14px 18px; } .km-chinh-card .eyebrow { font-size: 11px; color: var(--gold); font-weight: 700; letter-spacing: .02em; margin-bottom: 8px; } .km-chinh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; font-size: 13.5px; } .km-chinh-grid .full { grid-column: 1 / -1; } .km-chinh-grid label { display: block; font-size: 11.5px; color: var(--ink-soft); } .km-chinh-grid a { color: var(--teal-700); text-decoration: none; } .km-chinh-grid a:hover { text-decoration: underline; }
+/* CHIA CÁC PANEL RIÊNG BIỆT BO GÓC & CÁCH NHAU */ .panel-card { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 18px; padding: 20px 22px; } .panel-card h2, .panel-card h3 { margin: 0 0 14px; font-size: 13.5px; font-weight: 700; color: var(--ink-soft); letter-spacing: .01em; } .panel-card .panel-desc { font-size: 12.5px; color: var(--ink-soft); margin: -8px 0 16px; line-height: 1.45; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; } .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 20px; }
+.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; } .f.full { grid-column: 1 / -1; } .f label { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 2px; } .f .val { font-size: 14.5px; color: var(--ink); } .f .val.empty { color: #9BA39D; font-style: italic; font-size: 13.5px; }
+.ui-input, .ui-select, textarea.ui-textarea { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13.5px; background: #fff; color: var(--ink); } .ui-input:focus, .ui-select:focus, textarea.ui-textarea:focus { border-color: var(--focus); } .f.changed .ui-input, .f.changed .ui-select, .f.changed textarea.ui-textarea { border-color: var(--teal-700); background: #F2F7F6; } .f .auto-val { padding: 6px 10px; background: #FAFBF9; border: 1px dashed var(--line); border-radius: 6px; font-size: 13.5px; color: var(--ink); } .auto-tag { font-size: 10px; color: var(--teal-700); font-weight: 700; margin-left: 4px; }
+/* Đợt 1 / Đợt 2: Khối màu chỉ thị bên trái */ .batch-block { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); position: relative; padding-left: 16px; } .batch-block::before { content: ""; position: absolute; left: 0; top: 16px; bottom: 4px; width: 4px; border-radius: 2px; } .batch-block.b1::before { background: #5C8A63; } .batch-block.b2::before { background: var(--gold); } .batch-block h3 { margin-bottom: 14px; font-size: 13.5px; font-weight: 700; color: var(--ink); }
+/* ===== LAYOUT 2 CỘT CHO HỒ SƠ KHÁCH MỜI ===== */
+.support-tag { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.3); }
+.pic-tag { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; background:var(--pic-badge); color:#fff; }
+.note-box { font-size:12.5px; background:var(--gold-soft); color:var(--gold-dark); border:1px solid #D9BE8C; border-radius:8px; padding:10px 14px; margin-bottom:16px; }
+.pic-subtabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.pic-subtab-btn { padding:7px 14px; border:1px solid var(--line); background:#fff; border-radius:20px; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.pic-subtab-btn.active { background:var(--teal-800); color:#fff; border-color:var(--teal-800); }
+.pic-subtab-count { background:rgba(0,0,0,.12); border-radius:20px; padding:0 7px; font-size:11px; }
+.pic-subtab-btn.active .pic-subtab-count { background:rgba(255,255,255,.25); }
+.support-roster { font-size:12px; color:var(--ink-soft); margin-bottom:14px; } .support-roster strong { color:var(--ink); }
+.detail-tabs-mini { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:14px 0 0; }
+.field-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; margin-top:10px; }
+.field-grid .full { grid-column:1/-1; }
+.field-grid label { display:block; font-size:11.5px; font-weight:600; color:var(--ink-soft); margin-bottom:3px; }
+
+/* Ghi chú chung + Ngày/Giờ phản hồi gần nhất — hiển thị ngay trong khung header (identity) */
+.identity-notes { margin-top:16px; padding-top:14px; border-top:1px solid rgba(255,255,255,.18); }
+.identity-notes .f label { font-size:11px; font-weight:700; color:#D8E4E0; text-transform:uppercase; letter-spacing:.03em; }
+.identity-notes .f .val { color:#F4F6F4; }
+.identity-notes .f .val span { color:#B9CBC5 !important; }
+.identity-notes .log-item, .identity-notes .log-text { color:#F4F6F4; }
+.identity-notes .log-item.empty-state-log { color:rgba(244,246,244,.6); }
+.identity-notes .badge-date { background:rgba(255,255,255,.28); color:#12312C; }
+.identity-notes .badge-date.pic { background:rgba(255,255,255,.4); }
+.identity-notes .log-add input { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.3); color:#fff; }
+.identity-notes .log-add input::placeholder { color:rgba(255,255,255,.55); }
+.identity-notes .log-add button { background:rgba(255,255,255,.2); color:#fff; }
+.identity-notes .log-add button:hover { background:rgba(255,255,255,.32); }
+.identity-notes-meta-row { display:flex; gap:20px; }
+.identity-notes-meta-row .f { flex:1; }
+
+/* 2 cột: trái = hồ sơ khách mời cố định, phải = tab Đợt 1 / Đợt 2 / Lịch sử mail */
+.profile-layout { display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
+@media (max-width:900px) { .profile-layout { grid-template-columns:1fr; } }
+.profile-left, .profile-right { min-width:0; }
+.panel-card.compact { padding:16px 22px; }
+
+.detail-tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:18px; flex-wrap:wrap; }
+.detail-tab-btn { padding:10px 14px; border:none; background:none; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; border-bottom:3px solid transparent; transition:color .15s ease, border-color .15s ease; }
+.detail-tab-btn:hover { color:var(--teal-800); }
+.detail-tab-btn.active { color:var(--teal-800); border-bottom-color:var(--teal-800); }
+.detail-tab-panel { display:none; }
+.detail-tab-panel.active { display:block; }
+/* Toggle tiếng Việt */ .vn-toggle-row { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--line); } .vn-toggle { background: none; border: none; padding: 0; cursor: pointer; color: var(--teal-700); font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; } .collapsible { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .22s ease, opacity .18s ease; } .collapsible.open { max-height: 450px; opacity: 1; margin-top: 12px; }
+/* NHẬT KÝ GHI CHÚ CHUNG CÓ NOTE NGÀY NHƯ HÌNH */ .log-field { margin-top: 14px; } .log-field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 8px; } .log-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; } .log-item { display: flex; gap: 9px; font-size: 13px; align-items: baseline; } .log-item.empty-state-log { color: #9BA39D; font-style: italic; font-size: 12.5px; padding: 4px 0; }
+.badge-date { flex-shrink: 0; font-size: 11px; font-weight: 700; color: #fff; background: var(--teal-700); border-radius: 4px; padding: 1px 6px; line-height: 1.5; } .badge-date.pic { background: var(--pic-badge); } .log-text { color: var(--ink); line-height: 1.45; word-break: break-word; }
+.log-add { display: flex; gap: 8px; } .log-add input { flex: 1; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; } .log-add button { background: var(--teal-800); color: #fff; border: none; border-radius: 6px; padding: 0 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .15s ease; } .log-add button:hover { background: var(--teal-700); }
+/* Modal Thread */ .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(18, 49, 44, 0.4); align-items: flex-start; justify-content: center; z-index: 50; padding: 20px; overflow-y: auto; } .modal-backdrop.show { display: flex; } /* Mở rộng max-width của Modal */
+.modal { 
+  background: #fff; 
+  border-radius: 10px; 
+  max-width: 900px; /* Mở rộng từ 680px lên 900px */
+  width: 100%; 
+  padding: 20px; 
+  margin-top: 24px; 
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15); 
+} .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; } .modal-header strong { font-size: 16px; color: var(--teal-900); }
+.thread-block { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden; } .thread-head { width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: var(--paper-raised); border: none; padding: 12px 14px; cursor: pointer; } .thread-head:hover { background: #FAFBFA; } .thread-idx { font-size: 11px; font-weight: 700; color: var(--teal-700); background: var(--teal-light); border-radius: 5px; padding: 2px 7px; flex-shrink: 0; } .thread-meta { flex: 1; min-width: 0; } .thread-meta .subject { font-size: 13.5px; font-weight: 600; color: var(--ink); } .tag-proxy { display: inline-block; margin-top: 3px; font-size: 11px; font-weight: 600; color: var(--gold-dark); background: var(--gold-soft); border-radius: 4px; padding: 1px 6px; } .tag-newthread { display: inline-block; margin-top: 3px; margin-left: 4px; font-size: 11px; font-weight: 600; color: #92400E; background: var(--warn-light); border-radius: 4px; padding: 1px 6px; } .thread-side { font-size: 12px; color: var(--ink-soft); white-space: nowrap; flex-shrink: 0; } .thread-body { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .25s ease, opacity .2s ease; border-top: 1px solid transparent; } .thread-body.open { max-height: 20000px; opacity: 1; border-top: 1px solid var(--line); }
+/* ===== KHUNG CHAT LỊCH SỬ MAIL (trái = Gửi đi, phải = Nhận về) ===== */
+.chat-thread { padding: 14px 16px; background: #F4F7F6; display: flex; flex-direction: column; gap: 14px; }
+.chat-row { display: flex; width: 100%; }
+.chat-row.out { justify-content: flex-start; }
+.chat-row.in  { justify-content: flex-end; }
+.chat-bubble { max-width: 76%; min-width: 220px; border-radius: 14px; padding: 10px 14px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.chat-row.out .chat-bubble { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.chat-row.in  .chat-bubble { background: var(--teal-light); border: 1px solid #C3D8D3; border-bottom-right-radius: 4px; }
+.chat-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-soft); margin-bottom: 6px; }
+.chat-row.in .chat-meta { justify-content: flex-end; }
+.chat-meta .dir { font-weight: 700; }
+.chat-row.out .chat-meta .dir { color: var(--teal-700); }
+.chat-row.in  .chat-meta .dir { color: var(--gold-dark); }
+.chat-meta .who { font-weight: 600; color: var(--ink); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-body { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; color: var(--ink); }
+.chat-body.clamped { max-height: 180px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 65%, transparent 100%); mask-image: linear-gradient(180deg, #000 65%, transparent 100%); }
+.chat-more { margin-top: 6px; background: none; border: none; padding: 0; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--teal-700); }
+.chat-more:hover { text-decoration: underline; }
+@media (max-width: 640px) { .chat-bubble { max-width: 92%; min-width: 0; } }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.2); opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 60; } .toast.show { opacity: 1; transform: translateY(0); } .top-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap; } .empty-state { text-align: center; color: var(--ink-soft); font-size: 13.5px; padding: 36px 12px; } .error-box { background: #FDF2F2; border: 1px solid #F8B4B4; color: var(--danger); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; } .spinner { text-align: center; padding: 24px; color: var(--ink-soft); font-size: 13.5px; } .assign-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; } .assign-row input { flex: 1; min-width: 160px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; } a.link { color: var(--teal-700); text-decoration: none; font-size: 12.5px; } a.link:hover { text-decoration: underline; } input[type="hidden"] { display: none; } 
+
+/* ===== TAB BỘ LỌC ===== */
+.filter-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.fp-btn { padding: 7px 13px; border: 1px solid var(--line); background: #fff; border-radius: 20px; font-size: 12.5px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.fp-btn:hover { border-color: var(--teal-700); color: var(--teal-800); }
+.fp-btn.ghost { color: var(--ink-soft); }
+
+.fsec { padding: 18px 0; border-top: 1px dashed var(--line); }
+.fsec:first-child { padding-top: 4px; border-top: none; }
+.fsec-head { display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+.fsec-idx { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--teal-800); color: #fff; font-size: 11px; }
+.fsec-desc { font-size: 12px; color: var(--ink-soft); margin: 0 0 12px 29px; }
+
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 12px 16px; }
+.fbatch-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 860px) { .fbatch-row { grid-template-columns: 1fr; } }
+.fbatch { position: relative; padding: 14px 16px 16px 18px; border: 1px solid var(--line); border-radius: 10px; background: #FCFDFC; }
+.fbatch::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 4px; border-radius: 2px; }
+.fbatch.b1::before { background: #5C8A63; }
+.fbatch.b2::before { background: var(--gold); }
+.fbatch h4 { margin: 0 0 12px; font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.fbatch .filter-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+
+.ff, .fm { display: flex; flex-direction: column; gap: 4px; position: relative; min-width: 0; }
+.ff.wide { grid-column: span 2; }
+@media (max-width: 620px) { .ff.wide { grid-column: span 1; } }
+.ff label, .fm label { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); }
+.fm-btn { text-align: left; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: 13px; color: var(--ink-soft); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm-btn.active { border-color: var(--teal-700); background: #F2F7F6; color: var(--teal-800); font-weight: 600; }
+.fm-pop { display: none; position: absolute; top: 100%; left: 0; z-index: 30; width: max-content; min-width: 100%; max-width: 320px; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,.12); padding: 6px; }
+.fm-pop.show { display: block; }
+.fm-opt { display: flex; align-items: center; gap: 7px; padding: 5px 7px; font-size: 13px; border-radius: 5px; cursor: pointer; }
+.fm-opt:hover { background: var(--paper); }
+
+.filter-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; padding-top: 16px; border-top: 1px solid var(--line); }
+.filter-stats { font-size: 12.5px; color: var(--ink-soft); }
+.filter-stats strong { color: var(--teal-800); }
+.ftable-wrap { background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 62vh; }
+table.ftable { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+table.ftable th { position: sticky; top: 0; z-index: 2; background: var(--teal-800); color: #fff; text-align: left; font-weight: 600; padding: 9px 10px; white-space: nowrap; }
+table.ftable th.b1 { background: #3F6B47; }
+table.ftable th.b2 { background: #8A6A2E; }
+table.ftable td { padding: 8px 10px; border-bottom: 1px solid #EDF0EE; vertical-align: top; }
+table.ftable tbody tr:hover { background: #F6F9F8; cursor: pointer; }
+table.ftable td.nowrap { white-space: nowrap; }
+.fpill { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 20px; background: var(--teal-light); color: var(--teal-800); }
+.fpill.warn { background: var(--warn-light); color: #92400E; }
+.fpill.gold { background: var(--gold-soft); color: var(--gold-dark); }
+.fdot { font-weight: 700; } .fdot.yes { color: #16A34A; } .fdot.no { color: #C9CFC9; }
+</style>
+</head>
+<body>
+ 
+ 
+<div class="topbar">
+  <div class="brand-title">
+    AEF26 <span class="sub">2nd Autumn Economic Forum — HCMC C4IR</span>
+  </div>
+  <div style="font-size:12.5px;color:var(--ink-soft)">Đồng bộ trực tiếp với Google Sheets</div>
+</div>
+ 
+<div class="tabs">
+  <button class="tab-btn" data-tab="search">🔍 Tra cứu Mã KM</button>
+  <button class="tab-btn active" data-tab="replies">📬 Phản hồi mới <span class="badge" id="replyCount" style="display:none">0</span></button>
+  <button class="tab-btn" data-tab="processing">🗂️ Mail đang xử lý <span class="badge warn" id="processingCount" style="display:none">0</span></button>
+  <button class="tab-btn" data-tab="unknown">❓ Chưa xác định <span class="badge muted" id="unknownCount" style="display:none">0</span></button>
+  <button class="tab-btn" data-tab="filter">🎯 Bộ lọc</button>
+</div>
+ 
+<div class="wrap">
+ 
+  <!-- TAB: TRA CỨU -->
+  <div class="panel" id="panel-search">
+    <div class="search-bar">
+      <input id="searchInput" placeholder="Nhập Mã KM (VD: W3.1), Họ tên, Email, Đơn vị..." onkeydown="if(event.key==='Enter') doSearch()">
+      <button class="btn btn-primary" onclick="doSearch()">Tìm kiếm</button>
+    </div>
+    <div id="searchError"></div>
+    <div id="searchResults"></div>
+    <div id="detailPanel"></div>
+  </div>
+
+  <!-- TAB: PHẢN HỒI MỚI -->
+  <div class="panel active" id="panel-replies">
+    <div class="top-actions">
+      <span style="font-size:12.5px;color:var(--ink-soft)">Tự động đồng bộ với hộp thư đến</span>
+      <button class="btn btn-primary btn-sm" id="btnQuetMail" onclick="quetMailMoi()">↻ Làm mới</button>    
+    </div>    
+    <div id="repliesError"></div>
+    <div id="repliesList"><div class="spinner">Đang tải phản hồi...</div></div>
+  </div>
+
+  <!-- TAB: MAIL ĐANG XỬ LÝ (Cần follow-up + đã có Người xử lý), nhóm theo PIC -->
+  <div class="panel" id="panel-processing">
+    <div class="note-box">Chỉ hiện mail "Cần follow-up" đã có Người xử lý. Lưu với "Đã xử lý" → biến mất hoàn toàn khỏi mọi tab (thread vẫn lưu đủ trong Lịch sử mail của khách).</div>
+    <div class="top-actions">
+      <span style="font-size:12.5px;color:var(--ink-soft)"></span>
+      <button class="btn btn-secondary btn-sm" onclick="loadProcessing()">↻ Làm mới</button>
+    </div>
+    <div id="processingError"></div>
+    <div id="processingSubtabs"></div>
+    <div id="processingRoster"></div>
+    <div id="processingList"><div class="spinner">Đang tải mail đang xử lý...</div></div>
+  </div>
+ 
+  <!-- TAB: MAIL CHƯA XÁC ĐỊNH -->
+  <div class="panel" id="panel-unknown">
+    <div class="top-actions">
+      <span style="font-size:12.5px;color:var(--ink-soft)">Hộp thư nhận phản hồi nhưng chưa đối soát được với Mã KM nào</span>
+      <button class="btn btn-secondary btn-sm" onclick="loadUnknown()">↻ Làm mới</button>
+    </div>
+    <div class="top-actions" id="unknownBulkBar" style="display:none">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft)">
+        <input type="checkbox" id="unknownSelectAll" onchange="toggleSelectAllUnknown(this)"> Chọn tất cả
+      </label>
+      <button class="btn btn-secondary btn-sm" id="unknownBulkIgnoreBtn" onclick="ignoreSelectedMails()" disabled>Bỏ qua mục đã chọn (0)</button>
+    </div>
+    <div id="unknownError"></div>
+    <div id="unknownList"><div class="spinner">Đang tải danh sách mail chưa gán...</div></div>
+  </div> 
+
+  <!-- TAB: BỘ LỌC -->
+  <div class="panel" id="panel-filter">
+    <div class="filter-presets">
+      <button class="fp-btn" onclick="applyPreset('week')">📥 Có phản hồi 7 ngày qua</button>
+      <button class="fp-btn" onclick="applyPreset('resend')">📩 Đã gửi thư, chưa phản hồi</button>
+      <button class="fp-btn" onclick="applyPreset('contactissue')">⚠️ Email lỗi / chưa liên hệ</button>
+      <button class="fp-btn" onclick="applyPreset('declined')">🚫 Đã từ chối tham dự</button>
+      <button class="fp-btn ghost" onclick="resetFilter()">↺ Xoá bộ lọc</button>
+    </div>
+
+    <div id="filterWarn"></div>
+
+    <div class="panel-card">
+      <div class="fsec">
+        <div class="fsec-head"><span class="fsec-idx">1</span> Thời gian &amp; tình trạng phản hồi</div>
+        <p class="fsec-desc">Khoảng ngày áp dụng cho mail <strong>nhận về</strong> trong DATA MAIL. “Chưa phản hồi” = ô Phản hồi của Khách (AL/AQ) rỗng và Phản hồi tham dự cũng rỗng.</p>
+        <div class="filter-grid" id="fgridTime"><div class="spinner">Đang tải lựa chọn...</div></div>
+      </div>
+
+      <div class="fsec">
+        <div class="fsec-head"><span class="fsec-idx">2</span> Theo đợt gửi thư</div>
+        <p class="fsec-desc">Mặc định phải thoả điều kiện của <strong>cả hai</strong> đợt; đổi sang “HOẶC” nếu chỉ cần thoả một đợt bất kỳ.</p>
+        <div class="filter-grid" style="margin-bottom:14px"><div class="ff"><label>Kết hợp Đợt 1 &amp; Đợt 2</label>
+          <select class="ui-select" id="fltBatchJoin">
+            <option value="and">Thoả cả 2 đợt (VÀ)</option>
+            <option value="or">Thoả 1 trong 2 đợt (HOẶC)</option>
+          </select></div></div>
+        <div class="fbatch-row">
+          <div class="fbatch b1">
+            <h4>ĐỢT 1 — Thư Save the Date</h4>
+            <div class="filter-grid" id="fgridB1"></div>
+          </div>
+          <div class="fbatch b2">
+            <h4>ĐỢT 2 — Thư chính thức</h4>
+            <div class="filter-grid" id="fgridB2"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fsec">
+        <div class="fsec-head"><span class="fsec-idx">3</span> Hồ sơ &amp; phân loại khách</div>
+        <div class="filter-grid" id="fgridProfile"></div>
+      </div>
+
+      <div class="filter-actions">
+        <button class="btn btn-primary" onclick="runFilter()">🔎 Lọc</button>
+        <button class="btn btn-secondary" id="btnExportFilter" onclick="exportFilter()">⤓ Ghi kết quả ra sheet mới</button>
+        <span class="filter-stats" id="filterStats"></span>
+      </div>
+    </div>
+
+    <div id="filterError"></div>
+    <div id="filterResult"><div class="empty-state">Chọn điều kiện rồi bấm “Lọc”, hoặc dùng các nút lọc nhanh phía trên.</div></div>
+  </div>
+</div>
+
+</div>
+
+<!-- Modal cảnh báo lệch nhóm PIC -->
+<div class="modal-backdrop" id="mismatchModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><strong>Khác nhóm phụ trách</strong></div>
+    <p id="mismatchText" style="font-size:13.5px;color:var(--ink);line-height:1.5;margin:0 0 18px"></p>
+    <div class="row-actions" style="justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="resolveMismatch(false)">Huỷ</button>
+      <button class="btn btn-primary" onclick="resolveMismatch(true)">Tiếp tục, đổi PIC</button>
+    </div>
+  </div>
+</div>
+ 
+<!-- Modal Lịch sử Mail -->
+<div class="modal-backdrop" id="threadModal">
+  <div class="modal">
+    <div class="modal-header">
+      <strong>Lịch sử trao đổi Email</strong>
+      <button class="btn btn-secondary btn-sm" onclick="closeModal()">Đóng</button>
+    </div>
+    <div id="threadContent"></div>
+  </div>
+</div>
+ 
+<div class="toast" id="toast"></div>
+ 
+<script>
+  function gs(fnName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(function (err) { reject(err); })
+        [fnName].apply(null, args);
+    });
+  }
+ 
+  function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 2500);
+  }
+ 
+  function showError(elId, err) {
+    var el = document.getElementById(elId);
+    var msg = (err && err.message) ? err.message : (err || 'Có lỗi xảy ra.');
+    el.innerHTML = '<div class="error-box">' + escapeHtml(msg) + '</div>';
+  }
+ 
+ function classifyBadgeClass(v) {
+  var m = { 'Khách mời': 'c-guest', 'VVIP': 'c-vvip', 'VIP': 'c-vip', 'Speaker': 'c-speaker' };
+  return m[v] || 'c-guest';
+}
+
+  function escapeHtml(s) {
+    return (s || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+ 
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'filter') initFilterTab();
+    });
+  }); 
+  // ---------- TAB 1: PHẢN HỒI MỚI ----------
+  function quetMailMoi() {
+    var btn = document.getElementById('btnQuetMail');
+    var originalLabel = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'Đang quét…';
+    document.getElementById('repliesError').innerHTML = '';
+    gs('WA_quetMailMoi').then(function (result) {
+      btn.disabled = false;
+      btn.innerHTML = originalLabel;
+      showToast('Đã quét xong: +' + result.mailAdded + ' mail mới, +' + result.otherAdded + ' mail chưa xác định.');
+      loadReplies();
+    }).catch(function (err) {
+      btn.disabled = false;
+      btn.innerHTML = originalLabel;
+      showError('repliesError', err);
+    });
+  }
+
+  // Trạng thái dùng chung giữa "Phản hồi mới" và "Mail đang xử lý": tab Đợt 1/2 đang mở của mỗi card,
+  // dữ liệu mail theo rowIndex (để tra cứu khi Lưu / khi đổi tab Đợt), và danh sách cache để vẽ lại khi chuyển tab.
+  window.WA_MAIL_BY_ROW = window.WA_MAIL_BY_ROW || {};
+  window.WA_ACTIVE_BATCH = window.WA_ACTIVE_BATCH || {};
+  window.WA_ACTIVE_PIC_SUBTAB = window.WA_ACTIVE_PIC_SUBTAB || null;
+  window.WA_PENDING_SAVE = null;
+
+  function loadReplies() {    
+    document.getElementById('repliesError').innerHTML = '';
+    document.getElementById('repliesList').innerHTML = '<div class="spinner">Đang tải phản hồi...</div>';
+    gs('WA_getReplyStatusOptions').then(function (opts) {
+      window.WA_STATUS_OPTIONS = opts.statusOptions;
+      window.WA_HANDLER_OPTIONS = opts.handlerOptions;
+      window.WA_PIC_GROUPS = opts.picGroups || {};
+      return gs('WA_getNewReplies');
+    }).then(renderReplies).catch(function (err) {
+      document.getElementById('repliesList').innerHTML = '';
+      showError('repliesError', err);
+    });
+  }
+
+  // Khối Đợt 1/Đợt 2 dùng chung cho card "Phản hồi mới" và "Mail đang xử lý": toggle + log lịch sử (đọc
+  // từ AL/AM Đợt 1, AQ/AR Đợt 2 trong TEST) + 2 ô nhập dòng mới. KHÔNG có nút "Thêm" riêng — nội dung gõ
+  // vào 2 ô này chỉ thật sự được ghi vào sheet khi bấm nút Lưu chung của card (WA_updateReplyStatus).
+  function renderBatchBlock(m) {
+    var batch = window.WA_ACTIVE_BATCH[m.rowIndex] || '1';
+    var logs = m.batchLogs || { batch1: { phanhoi: [], btc: [] }, batch2: { phanhoi: [], btc: [] } };
+    var data = batch === '2' ? logs.batch2 : logs.batch1;
+    function renderLogList(entries, badgeCls) {
+      if (!entries || !entries.length) return '<div class="log-list"><div class="log-item empty-state-log">Chưa có ghi chú nào.</div></div>';
+      return '<div class="log-list">' + entries.map(function (e) {
+        return '<div class="log-item"><span class="badge-date' + (badgeCls ? ' ' + badgeCls : '') + '">' + escapeHtml(e.date) + '</span><span class="log-text">' + escapeHtml(e.text) + '</span></div>';
+      }).join('') + '</div>';
+    }
+    return '<div class="detail-tabs-mini">' +
+        '<button type="button" class="detail-tab-btn' + (batch === '1' ? ' active' : '') + '" onclick="switchBatchTab(' + m.rowIndex + ',\'1\')">Đợt 1</button>' +
+        '<button type="button" class="detail-tab-btn' + (batch === '2' ? ' active' : '') + '" onclick="switchBatchTab(' + m.rowIndex + ',\'2\')">Đợt 2</button>' +
+      '</div>' +
+      '<div class="batch-block b' + batch + '">' +
+        '<div class="log-field"><label>Phản hồi của khách' + (batch === '1' ? ' (AL)' : ' (AQ)') + '</label>' +
+          renderLogList(data.phanhoi) +
+          '<div class="log-add"><input type="text" class="ui-input" id="phanhoi-' + m.rowIndex + '" placeholder="Thêm phản hồi mới của khách (ghi khi bấm Lưu)..."></div>' +
+        '</div>' +
+        '<div class="log-field"><label>Tiến độ làm việc của BTC' + (batch === '1' ? ' (AM)' : ' (AR)') + '</label>' +
+          renderLogList(data.btc, 'pic') +
+          '<div class="log-add"><input type="text" class="ui-input" id="btc-' + m.rowIndex + '" placeholder="Thêm tiến độ làm việc của BTC (ghi khi bấm Lưu)..."></div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function switchBatchTab(rowIndex, batch) {
+    window.WA_ACTIVE_BATCH[rowIndex] = batch;
+    var entry = window.WA_MAIL_BY_ROW[rowIndex];
+    if (!entry) return;
+    if (entry.listKind === 'processing') renderProcessing(window.WA_PROCESSING_LIST || []);
+    else renderReplies(window.WA_REPLIES_LIST || []);
+  }
+
+  // Dropdown "Người xử lý" luôn lọc theo đúng nhóm PIC của khách (window.WA_PIC_GROUPS[r.pic]), đọc trực
+  // tiếp từ THIẾT LẬP FILE cột B/C — không còn dùng danh sách phẳng toàn bộ PIC như trước.
+  function buildHandlerOptions(pic, currentHandler) {
+    var group = (pic && window.WA_PIC_GROUPS && window.WA_PIC_GROUPS[pic]) ? window.WA_PIC_GROUPS[pic] : (window.WA_HANDLER_OPTIONS || []);
+    var opts = group.map(function (h) {
+      return '<option value="' + escapeHtml(h) + '"' + (h === currentHandler ? ' selected' : '') + '>' + escapeHtml(h) + '</option>';
+    }).join('');
+    return '<option value="">— chọn người xử lý' + (pic ? (' (nhóm ' + escapeHtml(pic) + ')') : '') + ' —</option>' + opts;
+  }
+
+  function renderReplyCard(r) {
+    window.WA_MAIL_BY_ROW[r.rowIndex] = { data: r, listKind: 'replies' };
+    var kmPhuTag = r.kmChinh ? '<span class="tag-proxy">KM phụ của ' + escapeHtml(r.kmChinh) + '</span> ' : '';
+    var statusOpts = (window.WA_STATUS_OPTIONS || ['Mới', 'Đã xử lý', 'Cần follow-up']).map(function (s) {
+      return '<option value="' + escapeHtml(s) + '"' + (s === r.status ? ' selected' : '') + '>' + escapeHtml(s) + '</option>';
+    }).join('');
+    var gmailUrl = r.threadId ? ('https://mail.google.com/mail/u/0/#all/' + encodeURIComponent(r.threadId)) : '';
+    var titleName = r.senderName || r.hoTen || ('Mã KM ' + r.maKM);
+    return '<div class="card" id="reply-card-' + r.rowIndex + '">' +
+      '<h3>' + escapeHtml(titleName) + ' - ' + escapeHtml(r.maKM) +
+      (gmailUrl ? ' <a href="' + gmailUrl + '" target="_blank" rel="noopener" class="thread-link">↗ Mở thread trong Gmail</a>' : '') +
+      '</h3>' +
+      '<div class="sub">' + kmPhuTag + escapeHtml(r.hoTen || '') + ' &middot; ' + escapeHtml(r.donVi || '') + ' &middot; Mã KM: <strong>' + escapeHtml(r.maKM) + '</strong>' +
+      (r.pic ? ' &middot; PIC: ' + escapeHtml(r.pic) : '') + (r.handler ? ' - Hỗ trợ: ' + escapeHtml(r.handler) : '') +
+      ' &middot; ' + escapeHtml(r.time) + '</div>' +
+      (r.subject ? '<div class="sub"><em>' + escapeHtml(r.subject) + '</em></div>' : '') +
+      (r.content ? '<div class="content">' + escapeHtml(r.content.substring(0, 500)) + '</div>' : '') +
+      '<div class="field-grid">' +
+        '<div><label>Trạng thái</label><select class="ui-select" id="status-' + r.rowIndex + '">' + statusOpts + '</select></div>' +
+        '<div><label>Người xử lý</label><select class="ui-select" id="handler-' + r.rowIndex + '">' + buildHandlerOptions(r.pic, r.handler) + '</select></div>' +
+        '<div class="full"><label>Ghi chú khách (lưu vào DATA MAIL và hồ sơ khách)</label><input type="text" class="ui-input" id="note-' + r.rowIndex + '" placeholder="Ghi chú (tuỳ chọn)"></div>' +
+      '</div>' +
+      renderBatchBlock(r) +
+      '<div class="row-actions">' +
+      '<button class="btn btn-secondary btn-sm" onclick="saveReplyStatus(' + r.rowIndex + ', this)">💾 Lưu</button>' +
+      '<button class="btn btn-primary btn-sm" onclick="jumpToGuest(\'' + r.maKM.replace(/'/g, "\\'") + '\')">Xem chi tiết</button>' +
+      '</div></div>';
+  }
+
+  function renderReplies(list) {
+    window.WA_REPLIES_LIST = list;
+    var badge = document.getElementById('replyCount');
+    if (list.length > 0) { badge.style.display = 'inline-block'; badge.textContent = list.length; }
+    else badge.style.display = 'none';
+ 
+    var container = document.getElementById('repliesList');
+    if (!list.length) {
+      container.innerHTML = '<div class="empty-state">🎉 Không có phản hồi mới nào chưa xem.</div>';
+      return;
+    }
+    container.innerHTML = list.map(renderReplyCard).join('');
+  }
+
+  // ---------- TAB: MAIL ĐANG XỬ LÝ (Cần follow-up + đã có Người xử lý), nhóm theo PIC ----------
+  function loadProcessing() {
+    document.getElementById('processingError').innerHTML = '';
+    document.getElementById('processingList').innerHTML = '<div class="spinner">Đang tải mail đang xử lý...</div>';
+    gs('WA_getReplyStatusOptions').then(function (opts) {
+      window.WA_STATUS_OPTIONS = opts.statusOptions;
+      window.WA_HANDLER_OPTIONS = opts.handlerOptions;
+      window.WA_PIC_GROUPS = opts.picGroups || {};
+      return gs('WA_getMailDangXuLy');
+    }).then(renderProcessing).catch(function (err) {
+      document.getElementById('processingList').innerHTML = '';
+      showError('processingError', err);
+    });
+  }
+
+  function renderProcessingCard(m) {
+    window.WA_MAIL_BY_ROW[m.rowIndex] = { data: m, listKind: 'processing' };
+    var gmailUrl = m.threadId ? ('https://mail.google.com/mail/u/0/#all/' + encodeURIComponent(m.threadId)) : '';
+    var titleName = m.senderName || m.hoTen || ('Mã KM ' + m.maKM);
+    return '<div class="card" id="reply-card-' + m.rowIndex + '">' +
+      '<h3>' + escapeHtml(titleName) + ' - ' + escapeHtml(m.maKM) +
+      (gmailUrl ? ' <a href="' + gmailUrl + '" target="_blank" rel="noopener" class="thread-link">↗ Mở thread trong Gmail</a>' : '') +
+      '</h3>' +
+      '<div class="sub">' + escapeHtml(m.hoTen || '') + ' &middot; ' + escapeHtml(m.donVi || '') + ' &middot; Mã KM: <strong>' + escapeHtml(m.maKM) + '</strong>' +
+      ' &middot; PIC: ' + escapeHtml(m.pic || '') + ' &middot; Đang xử lý bởi: <strong>' + escapeHtml(m.handler || '') + '</strong>' +
+      ' &middot; ' + escapeHtml(m.time) + '</div>' +
+      (m.subject ? '<div class="sub"><em>' + escapeHtml(m.subject) + '</em></div>' : '') +
+      (m.content ? '<div class="content">' + escapeHtml(m.content.substring(0, 500)) + '</div>' : '') +
+      '<div class="field-grid">' +
+        '<div><label>Trạng thái</label><select class="ui-select" id="status-' + m.rowIndex + '">' +
+          '<option' + (m.status === 'Cần follow-up' ? ' selected' : '') + '>Cần follow-up</option>' +
+          '<option' + (m.status === 'Đã xử lý' ? ' selected' : '') + '>Đã xử lý</option>' +
+        '</select></div>' +
+        '<div><label>Người xử lý</label><select class="ui-select" id="handler-' + m.rowIndex + '">' + buildHandlerOptions(m.pic, m.handler) + '</select></div>' +
+        '<div class="full"><label>Ghi chú khách (lưu vào DATA MAIL và hồ sơ khách)</label><input type="text" class="ui-input" id="note-' + m.rowIndex + '" placeholder="Ghi chú (tuỳ chọn)"></div>' +
+      '</div>' +
+      renderBatchBlock(m) +
+      '<div class="row-actions">' +
+      '<button class="btn btn-primary btn-sm" onclick="saveReplyStatus(' + m.rowIndex + ', this)">💾 Lưu trạng thái, người xử lý &amp; note tiến độ</button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="jumpToGuest(\'' + m.maKM.replace(/'/g, "\\'") + '\')">Xem chi tiết</button>' +
+      '</div></div>';
+  }
+
+  function renderProcessing(list) {
+    window.WA_PROCESSING_LIST = list;
+    var badge = document.getElementById('processingCount');
+    if (list.length > 0) { badge.style.display = 'inline-block'; badge.textContent = list.length; }
+    else badge.style.display = 'none';
+
+    var byPic = {};
+    list.forEach(function (m) { var key = m.pic || '(chưa rõ PIC)'; (byPic[key] = byPic[key] || []).push(m); });
+    var picKeys = Object.keys(byPic);
+    if (!window.WA_ACTIVE_PIC_SUBTAB || picKeys.indexOf(window.WA_ACTIVE_PIC_SUBTAB) === -1) window.WA_ACTIVE_PIC_SUBTAB = picKeys[0] || null;
+
+    var subtabsEl = document.getElementById('processingSubtabs');
+    var rosterEl = document.getElementById('processingRoster');
+    var listEl = document.getElementById('processingList');
+
+    if (!picKeys.length) {
+      subtabsEl.innerHTML = '';
+      rosterEl.innerHTML = '';
+      listEl.innerHTML = '<div class="empty-state">Không có mail nào đang xử lý.</div>';
+      return;
+    }
+
+    subtabsEl.innerHTML = '<div class="pic-subtabs">' + picKeys.map(function (p) {
+      return '<button class="pic-subtab-btn' + (p === window.WA_ACTIVE_PIC_SUBTAB ? ' active' : '') + '" onclick="switchPicSubtab(\'' + p.replace(/'/g, "\\'") + '\')">👤 ' + escapeHtml(p) + ' <span class="pic-subtab-count">' + byPic[p].length + '</span></button>';
+    }).join('') + '</div>';
+
+    var members = (window.WA_PIC_GROUPS && window.WA_PIC_GROUPS[window.WA_ACTIVE_PIC_SUBTAB]) || [];
+    rosterEl.innerHTML = members.length > 1
+      ? '<div class="support-roster">Nhân sự hỗ trợ nhóm ' + escapeHtml(window.WA_ACTIVE_PIC_SUBTAB) + ': <strong>' + members.slice(1).map(escapeHtml).join(', ') + '</strong></div>'
+      : '';
+
+    listEl.innerHTML = (byPic[window.WA_ACTIVE_PIC_SUBTAB] || []).map(renderProcessingCard).join('');
+  }
+
+  function switchPicSubtab(pic) {
+    window.WA_ACTIVE_PIC_SUBTAB = pic;
+    renderProcessing(window.WA_PROCESSING_LIST || []);
+  }
+
+  // ---------- LƯU CHUNG cho cả "Phản hồi mới" và "Mail đang xử lý" ----------
+  function saveReplyStatus(rowIndex, btnEl) {
+    var entry = window.WA_MAIL_BY_ROW[rowIndex];
+    var r = entry ? entry.data : null;
+    var status = document.getElementById('status-' + rowIndex).value;
+    var handler = document.getElementById('handler-' + rowIndex).value;
+    var note = document.getElementById('note-' + rowIndex).value;
+    var batch = window.WA_ACTIVE_BATCH[rowIndex] || '1';
+    var phanHoiKhach = document.getElementById('phanhoi-' + rowIndex).value;
+    var tienDoBtc = document.getElementById('btc-' + rowIndex).value;
+    var errorId = (entry && entry.listKind === 'processing') ? 'processingError' : 'repliesError';
+
+    if (status !== 'Mới' && !handler) {
+      showError(errorId, 'Vui lòng chọn "Người xử lý" trước khi lưu trạng thái "' + status + '".');
+      return;
+    }
+
+    // Cảnh báo nếu Người xử lý không thuộc đúng nhóm PIC hiện ghi trên hồ sơ khách.
+    if (handler && r && r.pic && window.WA_PIC_GROUPS && window.WA_PIC_GROUPS[r.pic] && window.WA_PIC_GROUPS[r.pic].indexOf(handler) === -1) {
+      var targetPic = '';
+      Object.keys(window.WA_PIC_GROUPS).forEach(function (p) {
+        if (!targetPic && window.WA_PIC_GROUPS[p].indexOf(handler) !== -1) targetPic = p;
+      });
+      window.WA_PENDING_SAVE = { rowIndex: rowIndex, status: status, handler: handler, note: note, batch: batch, phanHoiKhach: phanHoiKhach, tienDoBtc: tienDoBtc, btnEl: btnEl };
+      document.getElementById('mismatchText').innerHTML =
+        '<strong>' + escapeHtml(handler) + '</strong> không thuộc nhóm phụ trách <strong>' + escapeHtml(r.pic) + '</strong> của Mã KM ' + escapeHtml(r.maKM) + '.' +
+        (targetPic ? ' Nếu tiếp tục, hệ thống sẽ đổi Phụ trách (PIC) của khách sang nhóm <strong>' + escapeHtml(targetPic) + '</strong>.' : '');
+      document.getElementById('mismatchModal').classList.add('show');
+      return;
+    }
+
+    doSaveReplyStatus(rowIndex, status, handler, note, batch, phanHoiKhach, tienDoBtc, errorId, btnEl);
+  }
+
+  function doSaveReplyStatus(rowIndex, status, handler, note, batch, phanHoiKhach, tienDoBtc, errorId, btnEl) {
+    var originalLabel = btnEl ? btnEl.innerHTML : null;
+    if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = 'Đang lưu…'; }
+    gs('WA_updateReplyStatus', rowIndex, status, handler, note, batch, phanHoiKhach, tienDoBtc).then(function () {
+      showToast('Đã lưu');
+      loadReplies();
+      loadProcessing();
+    }).catch(function (err) {
+      if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalLabel; }
+      showError(errorId || 'repliesError', err);
+    });
+  }
+  
+  function resolveMismatch(confirmed) {
+    document.getElementById('mismatchModal').classList.remove('show');
+    var pending = window.WA_PENDING_SAVE;
+    window.WA_PENDING_SAVE = null;
+    if (!pending) return;
+    if (confirmed) {
+      var entry = window.WA_MAIL_BY_ROW[pending.rowIndex];
+      var errorId = (entry && entry.listKind === 'processing') ? 'processingError' : 'repliesError';
+      doSaveReplyStatus(pending.rowIndex, pending.status, pending.handler, pending.note, pending.batch, pending.phanHoiKhach, pending.tienDoBtc, errorId, pending.btnEl);
+    } else {
+      showToast('Đã huỷ, giữ nguyên Người xử lý cũ.');
+    }
+  }
+
+  function jumpToGuest(maKM) {
+    document.querySelector('.tab-btn[data-tab="search"]').click();
+    document.getElementById('searchInput').value = maKM;
+    document.getElementById('searchResults').innerHTML = '';
+    selectGuest(maKM);
+  }
+ 
+  // ---------- TAB 2: TRA CỨU ----------
+  function doSearch() {
+    var q = document.getElementById('searchInput').value.trim();
+    document.getElementById('searchError').innerHTML = '';
+    document.getElementById('detailPanel').innerHTML = '';
+    if (!q) return;
+    document.getElementById('searchResults').innerHTML = '<div class="spinner">Đang tìm dữ liệu...</div>';
+    gs('WA_search', q).then(function (results) { renderResults(results, q); })
+      .catch(function (err) {
+        document.getElementById('searchResults').innerHTML = '';
+        showError('searchError', err);
+      });
+  }
+ 
+  function renderResults(results, q) {
+    var container = document.getElementById('searchResults');
+    if (!results.length) {
+      container.innerHTML = '<div class="empty-state">Không tìm thấy khách mời nào khớp với "' + escapeHtml(q) + '".</div>';
+      return;
+    }
+    container.innerHTML = results.map(function (r) {
+      return '<div class="result-item" onclick="selectGuest(\'' + r.maKM.replace(/'/g, "\\'") + '\')">' +
+        '<div class="name">' + escapeHtml(r.hoTen) + ' <span style="font-weight:400;color:var(--ink-soft)">— Mã KM: ' + escapeHtml(r.maKM) + '</span></div>' +
+        '<div class="meta">' + escapeHtml(r.chucVu || '') + (r.donVi ? ' &middot; ' + escapeHtml(r.donVi) : '') + '</div>' +
+        '</div>';
+    }).join('');
+    if (results.length === 1) selectGuest(results[0].maKM);
+  }
+ 
+  var currentGuest = null;
+ 
+  function selectGuest(maKM) {
+    document.getElementById('detailPanel').innerHTML = '<div class="spinner">Đang tải hồ sơ khách mời...</div>';
+    gs('WA_getGuestDetail', maKM).then(renderDetail).catch(function (err) {
+      document.getElementById('detailPanel').innerHTML = '';
+      showError('searchError', err);
+    });
+  }
+ 
+  // ---------- LOG HELPER: PARSE DỮ LIỆU TỪ SHEET THÀNH CÁC BADGE NGÀY ----------
+  function parseLogTextToItems(text, isPic) {
+    if (!text || !text.trim()) return '<div class="log-item empty-state-log">Chưa có ghi chú</div>';
+    var lines = text.split('\n');
+    var html = '';
+    var dateRegex = /^(\d{1,2}[.\/]\d{1,2})\s*[-:]?\s*(.*)$/;
+ 
+    lines.forEach(function (line) {
+      line = line.trim();
+      if (!line) return;
+      var m = line.match(dateRegex);
+      var badgeCls = isPic ? 'badge-date pic' : 'badge-date';
+      if (m) {
+        html += '<div class="log-item"><span class="' + badgeCls + '">' + escapeHtml(m[1]) + '</span><span class="log-text">' + escapeHtml(m[2]) + '</span></div>';
+      } else {
+        html += '<div class="log-item"><span class="log-text">' + escapeHtml(line) + '</span></div>';
+      }
+    });
+    return html || '<div class="log-item empty-state-log">Chưa có ghi chú</div>';
+  }
+ 
+  // ---------- RENDER TỪNG TRƯỜNG DỮ LIỆU ----------
+  function renderField(f) {
+    var wrapId = 'field-' + f.col;
+    var listAttr = '', datalistHtml = '';
+    if (f.suggestions && f.suggestions.length) {
+      var listId = 'dl-' + f.col;
+      listAttr = ' list="' + listId + '"';
+      datalistHtml = '<datalist id="' + listId + '">' + f.suggestions.map(function (s) { return '<option value="' + escapeHtml(s) + '">'; }).join('') + '</datalist>';
+    }
+ 
+    var isFull = f.full || (f.label && (f.label.indexOf('Người mời') !== -1 || f.label.indexOf('Position') !== -1 || f.label.indexOf('Chức vụ') !== -1 || f.label.indexOf('Organization') !== -1 || f.label.indexOf('Tên đơn vị') !== -1));
+ 
+    // Trường hợp là ô Textarea có hỗ trợ Log ghi chú ngày (Ghi chú chung, Phản hồi, Tiến độ BTC)
+    if (f.type === 'textarea' || f.logHelper) {
+      var isPic = f.label && f.label.indexOf('BTC') !== -1;
+      var targets = f.autoTargets ? f.autoTargets.join(',') : '';
+      var listId = 'logList-' + f.col;
+      var inputId = 'logInput-' + f.col;
+ 
+      var parsedLogsHtml = parseLogTextToItems(f.value, isPic);
+ 
+      var inputBlock = '';
+      if (f.editable) {
+        inputBlock =
+          '<div class="log-add">' +
+            '<input type="text" id="' + inputId + '" placeholder="Thêm ghi chú mới…" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addVisualLog(' + f.col + ',\'' + inputId + '\',\'' + listId + '\',[' + targets + '],' + isPic + ');}">' +
+            '<button type="button" onclick="addVisualLog(' + f.col + ',\'' + inputId + '\',\'' + listId + '\',[' + targets + '],' + isPic + ')">Thêm</button>' +
+          '</div>';
+      }
+ 
+      return '<div class="f full log-field" id="' + wrapId + '">' +
+        '<label>' + escapeHtml(f.label) + '</label>' +
+        '<input type="hidden" data-col="' + f.col + '" value="' + escapeHtml(f.value) + '">' +
+        '<div class="log-list" id="' + listId + '">' + parsedLogsHtml + '</div>' +
+        inputBlock +
+      '</div>';
+    }
+ 
+    // Trường hợp chỉ đọc (Display Only / Ops info)
+    if (!f.editable && !f.auto) {
+      var displayVal = f.value ? escapeHtml(f.value) : '<span class="val empty">Chưa gán</span>';
+      return '<div class="f ' + (isFull ? 'full' : '') + '" id="' + wrapId + '">' +
+        '<label>' + escapeHtml(f.label) + '</label>' +
+        '<div class="val">' + displayVal + '</div>' +
+      '</div>';
+    }
+ 
+    // Trường hợp Tự động cập nhật
+    if (f.auto) {
+      return '<div class="f ' + (isFull ? 'full' : '') + '" id="' + wrapId + '">' +
+        '<label>' + escapeHtml(f.label) + '</label>' +
+        '<div class="val" id="auto-' + f.col + '">' +
+          (f.value ? escapeHtml(f.value) : '<span style="color:var(--ink-soft);font-style:italic">chưa nhận phản hồi</span>') +
+          ' <span style="color:var(--ink-soft);font-weight:400;font-size:12.5px;">(tin nhận về gần nhất)</span>' +          
+        '</div>' +
+        '<input type="hidden" data-col="' + f.col + '" value="' + escapeHtml(f.value) + '">' +
+      '</div>';
+    }
+ 
+        // Dropdown nhiều lựa chọn (multi-select) — Sheets lưu các giá trị đã chọn dạng "A, B, C" trong 1 ô
+    if (f.type === 'multiselect' && f.options) {
+      var checked = f.selectedValues || [];
+      var boxesHtml = f.options.map(function (o, idx) {
+        var cid = 'ms-' + f.col + '-' + idx;
+        var isChecked = checked.indexOf(o) !== -1;
+        return '<label style="display:inline-flex;align-items:center;gap:6px;margin:4px 12px 4px 0;font-weight:400;" for="' + cid + '">' +
+          '<input type="checkbox" id="' + cid + '" value="' + escapeHtml(o) + '"' +
+          (isChecked ? ' checked' : '') + (f.editable ? '' : ' disabled') +
+          ' onchange="onMultiSelectChange(' + f.col + ')">' +
+          '<span>' + escapeHtml(o) + '</span>' +
+        '</label>';
+      }).join('');
+
+      return '<div class="f ' + (isFull ? 'full' : '') + '" id="' + wrapId + '">' +
+        '<label>' + escapeHtml(f.label) + '</label>' +
+        '<div class="ms-group" data-col="' + f.col + '" style="display:flex;flex-wrap:wrap;">' + boxesHtml + '</div>' +
+        '<input type="hidden" data-col="' + f.col + '" value="' + escapeHtml(f.value) + '">' +
+      '</div>';
+    }
+
+    
+    // Select Dropdown
+    if (f.type === 'select' && f.options) {
+      var hasCustom = f.value && f.options.indexOf(f.value) === -1;
+      var selectHtml = '<select class="ui-select" data-col="' + f.col + '" ' + (f.editable ? '' : 'disabled') + ' onchange="markChanged(this)">' +
+        '<option value="">— chọn —</option>' +
+        (hasCustom ? '<option value="' + escapeHtml(f.value) + '" selected>' + escapeHtml(f.value) + '</option>' : '') +
+        f.options.map(function (o) { return '<option value="' + escapeHtml(o) + '"' + (o === f.value ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('') +
+        '</select>';
+ 
+      return '<div class="f ' + (isFull ? 'full' : '') + '" id="' + wrapId + '">' +
+        '<label>' + escapeHtml(f.label) + '</label>' +
+        selectHtml +
+      '</div>';
+    }
+ 
+    // Input text thông thường
+    return '<div class="f ' + (isFull ? 'full' : '') + '" id="' + wrapId + '">' +
+      '<label>' + escapeHtml(f.label) + '</label>' +
+      '<input type="text" class="ui-input" data-col="' + f.col + '"' + listAttr + ' value="' + escapeHtml(f.value) + '" ' + (f.editable ? '' : 'disabled') + ' oninput="markChanged(this)">' + datalistHtml +
+    '</div>';
+  }
+ 
+  // ---------- RENDER PANEL/SECTION TÁCH BIỆT ----------
+  function renderSectionPanel(s) {
+    if (s.collapsedByDefault) {
+      var vnFields = s.fields.map(renderField).join('');
+      return '<div class="vn-toggle-row">' +
+        '<button type="button" class="vn-toggle" id="vnToggleBtn" onclick="toggleSection(\'' + s.key + '\')">Hiện thêm bản tiếng Việt ▾</button>' +
+        '<div class="collapsible" id="sec-' + s.key + '"><div class="grid-2">' + vnFields + '</div></div>' +
+      '</div>';
+    }
+ 
+    var isBatch = s.accent;
+    var panelCls = isBatch ? ('batch-block ' + s.accent) : 'panel-card';
+    var gridCls = (s.fields.length > 2 && !isBatch) ? 'grid-2' : 'grid-2';
+    if (s.columns === 3) gridCls = 'grid-3';
+
+    // Panel "Thông tin nội bộ" hiện đủ tất cả field (Phụ trách, Nhân sự hỗ trợ, Đối tượng, Kênh mời,
+    // Người mời trực tiếp, Thuộc nhóm KM chính) — kể cả field nào đã có tag riêng ở header.
+    var fieldsHtml = s.fields.map(renderField).join(''); 
+    return '<div class="' + panelCls + '">' +
+      (s.title ? '<h2>' + escapeHtml(s.title) + '</h2>' : '') +
+      (s.desc ? '<p class="panel-desc">' + escapeHtml(s.desc) + '</p>' : '') +
+      '<div class="' + gridCls + '">' + fieldsHtml + '</div>' +
+    '</div>';
+  }
+ 
+  // ---------- RENDER TOÀN BỘ HỒ SƠ DETAIL ----------
+  function renderDetail(detail) {
+    currentGuest = { maKM: detail.maKM, original: {} };
+    detail.sections.forEach(function (s) { s.fields.forEach(function (f) { currentGuest.original[f.col] = f.value; }); });
+ 
+    var mainName = '', roleDesc = '', orgName = '', supportStaff = '', phuTrach = '';
+    detail.sections.forEach(function (s) {
+      s.fields.forEach(function (f) {
+        var lbl = (f.label || '').toLowerCase();
+        if (lbl === 'full name' || lbl === 'họ và tên') { if (!mainName && f.value) mainName = f.value; }
+        if (lbl === 'position' || lbl === 'chức vụ') { if (!roleDesc && f.value) roleDesc = f.value; }
+        if (lbl === 'organization' || lbl === 'tổ chức' || lbl === 'tên đơn vị') { if (!orgName && f.value) orgName = f.value; }
+        if (lbl === 'nhân sự hỗ trợ') { if (!supportStaff && f.value) supportStaff = f.value; }
+        if (lbl === 'phụ trách (pic)') { if (!phuTrach && f.value) phuTrach = f.value; }
+      });
+    });
+    if (!mainName) mainName = 'Mã KM ' + detail.maKM;
+
+    // ---- Tách riêng field của section "progress" để đưa vào header / cột trái ----
+    var progressSection = null;
+    detail.sections.forEach(function (s) { if (s.key === 'progress') progressSection = s; });
+    var ghiChuField = null, ngayField = null, gioField = null, loaiThuMoiField = null;
+    if (progressSection) {
+      progressSection.fields.forEach(function (f) {
+        if (f.label === 'Ghi chú chung') ghiChuField = f;
+        else if (f.label === 'Ngày phản hồi gần nhất') ngayField = f;
+        else if (f.label === 'Giờ phản hồi gần nhất') gioField = f;
+        else if (f.label === 'Loại thư mời') loaiThuMoiField = f;
+      });
+    } 
+    var kmPhuHtml = '';
+    if (detail.kmChinh) {
+      var k = detail.kmChinh;
+      kmPhuHtml =
+        '<div class="km-phu-tag">' +
+          'KM phụ của ' + escapeHtml(detail.kmChinhRaw) +
+          '<button type="button" id="kmChinhBtn" onclick="toggleKmChinh()">Xem tóm tắt ▾</button>' +
+        '</div>' +
+        '<div class="km-chinh-card" id="kmChinhCard">' +
+          '<div class="eyebrow">HỒ SƠ KM CHÍNH</div>' +
+          '<div class="km-chinh-grid">' +
+            '<div><label>Họ và tên</label><div>' + escapeHtml(k.hoTen) + '</div></div>' +
+            '<div><label>Mã KM</label><div>' + escapeHtml(k.maKM) + '</div></div>' +
+            '<div><label>Chức vụ</label><div>' + escapeHtml(k.chucVu) + '</div></div>' +
+            '<div><label>Tổ chức</label><div>' + escapeHtml(k.donVi) + '</div></div>' +
+            '<div class="full"><label>Email</label><div>' + (k.email ? '<a href="mailto:' + escapeHtml(k.email) + '">' + escapeHtml(k.email) + '</a>' : '—') + '</div></div>' +
+          '</div>' +
+        '</div>';
+    } else if (detail.isKmPhu) {
+      kmPhuHtml = '<div class="km-phu-tag warn">KM phụ của ' + escapeHtml(detail.kmChinhRaw) + ' (không tìm thấy hồ sơ chính khớp tên)</div>';
+    }
+ 
+    var identityNotesHtml = '';
+    if (ghiChuField || ngayField || gioField) {
+      identityNotesHtml =
+        '<div class="identity-notes">' +
+          (ghiChuField ? renderField(ghiChuField) : '') +
+          ((ngayField || gioField) ?
+            '<div class="identity-notes-meta-row">' +
+              (ngayField ? renderField(ngayField) : '') +
+              (gioField ? renderField(gioField) : '') +
+            '</div>' : '') +
+        '</div>';
+    }
+
+    var identityHtml =
+      '<div class="identity">' +
+        '<div class="identity-top">' +
+          '<span class="km-code">MÃ KM ' + escapeHtml(detail.maKM) + '</span>' +
+          '<button class="btn btn-secondary btn-sm" onclick="switchDetailTab(\'mail\')">✉ Lịch sử email</button>' +
+        '</div>' +
+        '<h1>' + escapeHtml(mainName) + '</h1>' +
+        '<div class="classify-row">' +
+          (detail.phanLoai ? '<span class="badge-classify ' + classifyBadgeClass(detail.phanLoai) + '">' + escapeHtml(detail.phanLoai) + '</span>' : '') +
+          (detail.daiTho ? '<span class="badge-funded">💰 Đài thọ</span>' : '') +
+          (phuTrach ? '<span class="pic-tag">👤 PIC: ' + escapeHtml(phuTrach) + '</span>' : '') +
+          (supportStaff ? '<span class="support-tag">🧑‍💼 Hỗ trợ: ' + escapeHtml(supportStaff) + '</span>' : '') +
+        '</div>' +
+        '<div class="role-line">' + escapeHtml(roleDesc) + (orgName ? ', <span class="org">' + escapeHtml(orgName) + '</span>' : '') + '</div>' +
+        kmPhuHtml +
+        identityNotesHtml +
+      '</div>';
+
+    // ---- Chia section: trái = hồ sơ khách mời (đã gồm internal/bio/contact/proxy + Loại thư mời), phải = tab Đợt 1/Đợt 2/Lịch sử mail ----
+    var LEFT_KEYS = ['internal', 'bio_en', 'bio_vn', 'contact', 'proxy'];
+    var leftHtml = '', batch1Html = '', batch2Html = '';
+    detail.sections.forEach(function (s) {
+      if (LEFT_KEYS.indexOf(s.key) !== -1) {
+        leftHtml += renderSectionPanel(s);
+      } else if (s.key === 'batch1') {
+        batch1Html += renderSectionPanel(s);
+      } else if (s.key === 'batch2') {
+        batch2Html += renderSectionPanel(s);
+      } else if (s.key !== 'progress') {
+        leftHtml += renderSectionPanel(s); // section lạ không xác định -> mặc định về cột trái, tránh mất dữ liệu
+      }
+      // key === 'progress' đã được xử lý riêng ở trên (Ghi chú chung/Ngày/Giờ -> header, Loại thư mời -> panel nhỏ dưới đây)
+    });
+
+    if (loaiThuMoiField) {
+      leftHtml += '<div class="panel-card compact">' + renderField(loaiThuMoiField) + '</div>';
+    }
+
+    var rightHtml =
+      '<div class="detail-tabs">' +
+        '<button type="button" class="detail-tab-btn active" data-tab="batch1" onclick="switchDetailTab(\'batch1\')">Đợt 1</button>' +
+        '<button type="button" class="detail-tab-btn" data-tab="batch2" onclick="switchDetailTab(\'batch2\')">Đợt 2</button>' +
+        '<button type="button" class="detail-tab-btn" data-tab="mail" onclick="switchDetailTab(\'mail\')">Lịch sử mail</button>' +
+      '</div>' +
+      '<div class="detail-tab-panel active" id="detailTab-batch1">' + batch1Html + '</div>' +
+      '<div class="detail-tab-panel" id="detailTab-batch2">' + batch2Html + '</div>' +
+      '<div class="detail-tab-panel" id="detailTab-mail"><div id="mailHistoryContent" class="spinner">Đang tải lịch sử email...</div></div>';
+
+    document.getElementById('detailPanel').innerHTML =
+      identityHtml +
+      '<div class="profile-layout">' +
+        '<div class="profile-left">' + leftHtml + '</div>' +
+        '<div class="profile-right">' + rightHtml +
+          '<div id="saveError"></div>' +
+          '<div style="margin-top:20px">' +
+             '<button id="btnSave" class="btn btn-primary btn-block" onclick="saveChanges()">💾 Lưu thay đổi vào Trang tính</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ---------- CHUYỂN TAB ĐỢT 1 / ĐỢT 2 / LỊCH SỬ MAIL ----------
+  function switchDetailTab(tabKey) {
+    document.querySelectorAll('.detail-tab-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.tab === tabKey);
+    });
+    document.querySelectorAll('.detail-tab-panel').forEach(function (panel) {
+      panel.classList.remove('active');
+    });
+    var target = document.getElementById('detailTab-' + tabKey);
+    if (target) target.classList.add('active');
+
+    if (tabKey === 'mail' && currentGuest && !currentGuest.mailLoaded) {
+      currentGuest.mailLoaded = true;
+      gs('WA_getEmailThread', currentGuest.maKM).then(function (data) {
+        renderThread(data, 'mailHistoryContent');
+      }).catch(function (err) {
+        document.getElementById('mailHistoryContent').innerHTML = '<div class="error-box">' + escapeHtml(err.message || err) + '</div>';
+      });
+    }
+  }
+
+  function toggleSection(key) {
+    var el = document.getElementById('sec-' + key);
+    var btn = document.getElementById('vnToggleBtn');
+    var open = !el.classList.contains('open');
+    el.classList.toggle('open', open);
+    if (btn) btn.innerHTML = open ? 'Ẩn bản tiếng Việt ▴' : 'Hiện thêm bản tiếng Việt ▾';
+  }
+ 
+  function toggleKmChinh() {
+    var card = document.getElementById('kmChinhCard');
+    var btn = document.getElementById('kmChinhBtn');
+    var open = !card.classList.contains('open');
+    card.classList.toggle('open', open);
+    if (btn) btn.innerHTML = open ? 'Ẩn tóm tắt ▴' : 'Xem tóm tắt ▾';
+  }
+ 
+  // ---------- THÊM LOG GHI CHÚ (TỰ GẮN BADGE NGÀY & GỘP STRING CHO SHEET) ----------
+  function addVisualLog(col, inputId, listId, targetCols, isPic) {
+    var input = document.getElementById(inputId);
+    var val = (input.value || '').trim();
+    if (!val) return;
+ 
+    var wrapper = document.getElementById('field-' + col);
+    var hidden = wrapper.querySelector('input[type=hidden]');
+    var list = document.getElementById(listId);
+ 
+    // Xóa empty state nếu có
+    var empty = list.querySelector('.empty-state-log');
+    if (empty) empty.remove();
+ 
+    var now = new Date();
+    var d = ('0' + now.getDate()).slice(-2);
+    var m = ('0' + (now.getMonth() + 1)).slice(-2);
+    var dateStr = d + '.' + m; // Ví dụ: 09.09 hoặc 10.8
+ 
+    // Chuẩn bị dòng mới theo cấu trúc chuẩn: "10.8 - ghi chú..."
+    var newLine = dateStr + ' - ' + val;
+ 
+    // Gộp string ngược vào hidden input để gửi về Sheets
+    var origVal = hidden.value ? hidden.value.trim() : '';
+    hidden.value = origVal ? (newLine + '\n' + origVal) : newLine;
+    markChanged(hidden);
+ 
+    // Tạo visual badge mới trên giao diện
+    var badgeCls = isPic ? 'badge-date pic' : 'badge-date';
+    var itemEl = document.createElement('div');
+    itemEl.className = 'log-item';
+    itemEl.innerHTML = '<span class="' + badgeCls + '">' + dateStr + '</span><span class="log-text">' + escapeHtml(val) + '</span>';
+    list.prepend(itemEl);
+ 
+    input.value = '';
+ 
+    // Cập nhật trường tự động (Phản hồi gần nhất) nếu có liên kết targetCols
+    if (targetCols && targetCols.length === 2 && targetCols[0] && targetCols[1]) {
+      setAutoField(targetCols[0], now.getDate());
+      setAutoField(targetCols[1], now.getMonth() + 1);
+    }
+  }
+ 
+  function setAutoField(col, val) {
+    var wrapper = document.getElementById('field-' + col);
+    if (!wrapper) return;
+    var hidden = wrapper.querySelector('input[type=hidden]');
+    var display = document.getElementById('auto-' + col);
+    if (!hidden) return;
+    hidden.value = val;
+    markChanged(hidden);
+    if (display) display.innerHTML = val + ' <span style="color:var(--ink-soft);font-weight:400;font-size:12.5px;">(tự cập nhật)</span>';
+  }
+ 
+    function onMultiSelectChange(col) {
+    var wrapper = document.getElementById('field-' + col);
+    if (!wrapper) return;
+    var checked = Array.prototype.map.call(
+      wrapper.querySelectorAll('.ms-group input[type=checkbox]:checked'),
+      function (cb) { return cb.value; }
+    );
+    var hidden = wrapper.querySelector('input[type=hidden]');
+    if (!hidden) return;
+    hidden.value = checked.join(', ');
+    markChanged(hidden);
+  }
+
+  function markChanged(el) {
+    var wrapper = el.closest('.f');
+    if (!wrapper) return;
+    var col = el.dataset.col;
+    var orig = currentGuest.original[col] || '';
+    if (el.value !== orig) wrapper.classList.add('changed'); else wrapper.classList.remove('changed');
+  }
+ 
+  function saveChanges() {
+    if (!currentGuest) return;
+        var sel = '#detailPanel .f.changed input[data-col]:not([type=checkbox]), #detailPanel .f.changed textarea[data-col], #detailPanel .f.changed select[data-col]';
+    var changedEls = document.querySelectorAll(sel);
+    if (!changedEls.length) { showToast('Không có gì thay đổi.'); return; }
+    var updates = Array.prototype.map.call(changedEls, function (el) { return { col: parseInt(el.dataset.col, 10), value: el.value }; });
+
+    var btn = document.getElementById('btnSave');
+    var originalLabel = btn.innerHTML;
+    btn.classList.remove('done');
+    btn.classList.add('btn-saving');
+    btn.innerHTML = 'Đang lưu…';
+
+    gs('WA_updateGuestFields', currentGuest.maKM, updates).then(function () {
+      btn.classList.add('done');
+      btn.innerHTML = '✅ Đã lưu — có thể thoát trang';
+      showToast('Đã lưu ' + updates.length + ' trường thành công.');
+      setTimeout(function () { selectGuest(currentGuest.maKM); }, 600);
+    }).catch(function (err) {
+      btn.classList.remove('btn-saving', 'done');
+      btn.innerHTML = originalLabel;
+      showError('saveError', err);
+      document.getElementById('saveError').scrollIntoView({behavior:'smooth', block:'center'});
+    });
+  }
+
+  // ---------- MODAL LỊCH SỬ MAIL ----------
+  function viewThread(maKM) {
+    document.getElementById('threadModal').classList.add('show');
+    document.getElementById('threadContent').innerHTML = '<div class="spinner">Đang tải toàn bộ hội thoại...</div>';
+    gs('WA_getEmailThread', maKM).then(renderThread).catch(function (err) {
+      document.getElementById('threadContent').innerHTML = '<div class="error-box">' + escapeHtml(err.message || err) + '</div>';
+    });
+  }
+ 
+  function renderThread(data, containerId) {
+    var el = document.getElementById(containerId || 'threadContent');
+    el.className = ''; // gỡ class "spinner" (text-align:center) còn sót lại từ trạng thái "Đang tải...", nếu không toàn bộ nội dung thread bên dưới sẽ bị kế thừa canh giữa
+    if (!data.threads || !data.threads.length) {
+      el.innerHTML = '<div class="empty-state">Chưa có hội thoại mail nào được ghi nhận cho khách mời này.</div>';
+      return;
+    }
+    el.innerHTML = '<p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 12px">' + data.threads.length + ' thread riêng biệt được tìm thấy:</p>' +
+      data.threads.map(function (t, idx) {
+        var proxyTag = t.isProxy ? '<span class="tag-proxy">Trả lời qua liên hệ đại diện' + (t.proxyName ? ' — ' + escapeHtml(t.proxyName) : '') + (t.proxyRelation ? ' (' + escapeHtml(t.proxyRelation) + ')' : '') + '</span>' : '';
+        var newTag = t.isNewThreadNotYetLinked ? '<span class="tag-newthread">Thread mới — cần lưu Mã Gmail</span>' : '';
+        var msgsHtml = '<div class="chat-thread">' + t.messages.map(function (m) {
+          var isIn = m.direction && m.direction.indexOf('Nhận') !== -1;
+          var raw = (m.content || '').toString();
+          var isLong = raw.length > 600;
+          return '<div class="chat-row ' + (isIn ? 'in' : 'out') + '">' +
+            '<div class="chat-bubble">' +
+              '<div class="chat-meta">' +
+                '<span class="dir">' + (isIn ? '↙ Nhận về' : '↗ Gửi đi') + '</span>' +
+                '<span class="who">' + escapeHtml(m.senderName || m.senderEmail || '') + '</span>' +
+                '<span>· ' + escapeHtml(m.dateStr || '') + '</span>' +
+              '</div>' +
+              '<div class="chat-body' + (isLong ? ' clamped' : '') + '">' + escapeHtml(raw) + '</div>' +
+              (isLong ? '<button type="button" class="chat-more" onclick="toggleChatBody(this)">Xem thêm ▾</button>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('') + '</div>';        
+        return '<div class="thread-block">' +
+          '<button type="button" class="thread-head" onclick="toggleThreadBlock(this)">' +
+            '<span class="thread-idx">Thread ' + (idx + 1) + '</span>' +
+            '<span class="thread-meta"><div class="subject">' + escapeHtml(t.subject) + '</div>' + proxyTag + newTag + '</span>' +
+            '<span class="thread-side">' + t.messages.length + ' tin &middot; ' + escapeHtml(t.lastActivityStr) + '</span>' +
+          '</button>' +
+          '<div class="thread-body">' +
+            (t.gmailUrl ? '<div style="padding:10px 14px 4px"><a class="link" href="' + t.gmailUrl + '" target="_blank">Mở thread này trong Gmail ↗</a></div>' : '') +
+            msgsHtml +
+          '</div>' +
+        '</div>';
+      }).join('');
+  }
+ 
+  function toggleThreadBlock(btn) {
+    var body = btn.nextElementSibling;
+    body.classList.toggle('open');
+  }
+
+  function toggleChatBody(btn) {
+    var body = btn.previousElementSibling;
+    var stillClamped = body.classList.toggle('clamped');
+    btn.innerHTML = stillClamped ? 'Xem thêm ▾' : 'Thu gọn ▴';
+  }
+
+  function closeModal() { document.getElementById('threadModal').classList.remove('show'); }
+ 
+  // ---------- TAB 3: MAIL CHƯA XÁC ĐỊNH ----------
+  function loadUnknown() {
+    document.getElementById('unknownError').innerHTML = '';
+    document.getElementById('unknownList').innerHTML = '<div class="spinner">Đang kiểm tra mail chưa khớp...</div>';
+    gs('WA_getUnclassifiedMail').then(renderUnknown).catch(function (err) {
+      document.getElementById('unknownList').innerHTML = '';
+      showError('unknownError', err);
+    });
+  }
+ 
+  function renderUnknown(list) {
+    var badge = document.getElementById('unknownCount');
+    if (list.length > 0) { badge.style.display = 'inline-block'; badge.textContent = list.length; }
+    else badge.style.display = 'none';
+ 
+    var container = document.getElementById('unknownList');
+    var bulkBar = document.getElementById('unknownBulkBar');
+    if (!list.length) {
+      container.innerHTML = '<div class="empty-state">Không có email nào chưa xác định.</div>';
+      bulkBar.style.display = 'none';
+      return;
+    }
+    bulkBar.style.display = 'flex';
+    document.getElementById('unknownSelectAll').checked = false;
+    window.WA_UNKNOWN_BY_THREAD = {};
+    container.innerHTML = list.map(function (m, idx) {
+      window.WA_UNKNOWN_BY_THREAD[m.threadId] = m;
+      var safeThread = m.threadId.replace(/'/g, "\\'");
+      var cardId = 'unknown-card-' + idx;
+      var gmailUrl = 'https://mail.google.com/mail/u/0/#all/' + encodeURIComponent(m.threadId);
+      return '<div class="card" id="' + cardId + '">' +
+        '<h3><label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer">' +
+        '<input type="checkbox" class="unknown-check" data-thread="' + escapeHtml(m.threadId) + '" onchange="updateUnknownSelectedCount()" style="margin-top:4px">' +
+        '<span>' + escapeHtml(m.senderName || m.senderEmail) +
+        (m.threadId ? ' <a href="' + gmailUrl + '" target="_blank" rel="noopener" class="thread-link">↗ Mở thread trong Gmail</a>' : '') +
+        '</span></label></h3>' +
+        '<div class="sub">' + escapeHtml(m.senderEmail) + ' &middot; ' + escapeHtml(m.time) + '</div>' +        
+        (m.subject ? '<div class="sub"><em>' + escapeHtml(m.subject) + '</em></div>' : '') +
+        '<div class="content">' + escapeHtml(m.content.substring(0, 500)) + '</div>' +
+        '<div class="assign-row">' +
+        '<input type="text" placeholder="Nhập Mã KM để gán (VD: W3.1)" id="assign-input-' + idx + '">' +
+        '<button class="btn btn-primary btn-sm" onclick="assignMail(\'' + safeThread + '\', document.getElementById(\'assign-input-' + idx + '\').value, \'' + cardId + '\', this)">Gán vào hồ sơ</button>' +
+        '<button class="btn btn-secondary btn-sm" onclick="ignoreMail(\'' + safeThread + '\', this)">Bỏ qua</button>' +
+        '</div></div>';
+    }).join('');
+    updateUnknownSelectedCount();
+  }
+
+  function toggleSelectAllUnknown(checkbox) {
+    document.querySelectorAll('#unknownList .unknown-check').forEach(function (cb) {
+      cb.checked = checkbox.checked;
+    });
+    updateUnknownSelectedCount();
+  }
+
+  function updateUnknownSelectedCount() {
+    var checks = document.querySelectorAll('#unknownList .unknown-check');
+    var checked = document.querySelectorAll('#unknownList .unknown-check:checked');
+    var btn = document.getElementById('unknownBulkIgnoreBtn');
+    if (!btn) return;
+    btn.textContent = 'Bỏ qua mục đã chọn (' + checked.length + ')';
+    btn.disabled = checked.length === 0;
+    var selectAll = document.getElementById('unknownSelectAll');
+    if (selectAll) selectAll.checked = checks.length > 0 && checked.length === checks.length;
+  }
+
+  function ignoreSelectedMails() {
+    var checked = document.querySelectorAll('#unknownList .unknown-check:checked');
+    if (!checked.length) return;
+    var threadIds = Array.prototype.map.call(checked, function (cb) { return cb.getAttribute('data-thread'); });
+    if (!confirm('Đánh dấu ' + threadIds.length + ' thread là "Không liên quan" / bỏ qua? Thao tác này có thể hoàn tác thủ công trong sheet "OTHER MAIL".')) return;
+    var btn = document.getElementById('unknownBulkIgnoreBtn');
+    var originalLabel = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = 'Đang bỏ qua…';
+    gs('WA_ignoreMailBatch', threadIds).then(function (res) {
+      showToast('Đã bỏ qua ' + (res.updated || threadIds.length) + ' mail.');
+      loadUnknown();
+    }).catch(function (err) {
+      btn.disabled = false; btn.innerHTML = originalLabel;
+      showError('unknownError', err);
+    });
+  }
+   
+  // Sau khi gán Mã KM, hiện luôn đủ các field (Trạng thái/Người xử lý/Ghi chú/Note tiến độ Đợt 1-2) NGAY
+  // TẠI ĐÂY — không cần chạy qua tab "Phản hồi mới" tìm lại. Tái dùng renderReplyCard() + saveReplyStatus()
+  // sẵn có nên logic lưu (kể cả cảnh báo lệch nhóm PIC, tự chuyển tab khi lưu) áp dụng y hệt.
+    function assignMail(threadId, maKM, cardId, btnEl) {
+    maKM = (maKM || '').trim();
+    if (!maKM) { showToast('Vui lòng nhập Mã KM.'); return; }
+    var mObj = window.WA_UNKNOWN_BY_THREAD[threadId] || {};
+    var originalLabel = btnEl ? btnEl.innerHTML : null;
+    if (btnEl) { btnEl.disabled = true; btnEl.innerHTML = 'Đang gán…'; }
+    gs('WA_assignMailToGuest', threadId, maKM).then(function (res) {
+      showToast('Đã gán vào Mã KM ' + (res.maKM || maKM) + ' — hoàn tất thông tin bên dưới rồi bấm Lưu.');
+      var extended = {
+        rowIndex: res.rowIndex,
+        maKM: res.maKM || maKM,
+        senderName: mObj.senderName || mObj.senderEmail || '',
+        hoTen: res.hoTen || '',
+        donVi: res.donVi || '',
+        kmChinh: '',
+        pic: res.pic || '',
+        time: mObj.time || '',
+        subject: mObj.subject || '',
+        content: mObj.content || '',
+        status: 'Mới',
+        handler: '',
+        threadId: threadId,
+        batchLogs: { batch1: { phanhoi: [], btc: [] }, batch2: { phanhoi: [], btc: [] } }
+      };
+      var cardEl = document.getElementById(cardId);
+      if (cardEl) cardEl.outerHTML = renderReplyCard(extended);
+    }).catch(function (err) {
+      if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = originalLabel; }
+      showError('unknownError', err);
+    });
+  }
+ 
+  function ignoreMail(threadId, btnEl) {    
+    if (!confirm('Đánh dấu toàn bộ thread này là "Không liên quan" / bỏ qua? Thao tác này có thể hoàn tác thủ công trong sheet "OTHER MAIL".')) return;
+    gs('WA_ignoreMail', threadId).then(function () {
+      showToast('Đã bỏ qua thread này.');
+      loadUnknown();
+    }).catch(function (err) { showError('unknownError', err); });
+  }
+ 
+  // ---------- TAB 4: BỘ LỌC ----------
+  window.WA_FILTER_MULTI = ['tienDo1','xacNhan1','tienDo2','xacNhan2','doiTuong','phanLoai','kenhMoi','quocGia','linhVuc','pic'];
+
+  function fNorm(s) {
+    return (s || '').toString().toLowerCase().normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  function initFilterTab() {
+    if (window.WA_FILTER_OPTIONS) return;
+    gs('WA_getFilterOptions').then(function (o) {
+      window.WA_FILTER_OPTIONS = o;
+      renderFilterForm(o);
+    }).catch(function (err) {
+      document.getElementById('fgridTime').innerHTML = '';
+      showError('filterError', err);
+    });
+  }
+
+  function fmBlock(key, label, options) {
+    var opts = (options || []).map(function (o) {
+      return '<label class="fm-opt"><input type="checkbox" value="' + escapeHtml(o) + '" onchange="fmUpdate(\'' + key + '\')"><span>' + escapeHtml(o) + '</span></label>';
+    }).join('') || '<div style="padding:6px;font-size:12.5px;color:var(--ink-soft)">Không có dữ liệu</div>';
+    return '<div class="fm" id="fm-' + key + '">' +
+      '<label>' + escapeHtml(label) + '</label>' +
+      '<button type="button" class="fm-btn" id="fmbtn-' + key + '" onclick="fmToggle(\'' + key + '\')">— tất cả —</button>' +
+      '<div class="fm-pop" id="fmpop-' + key + '">' + opts + '</div>' +
+    '</div>';
+  }
+  function fmToggle(key) {
+    var p = document.getElementById('fmpop-' + key);
+    document.querySelectorAll('.fm-pop.show').forEach(function (x) { if (x !== p) x.classList.remove('show'); });
+    p.classList.toggle('show');
+  }
+  function fmValues(key) {
+    return Array.prototype.map.call(document.querySelectorAll('#fmpop-' + key + ' input:checked'), function (cb) { return cb.value; });
+  }
+  function fmUpdate(key) {
+    var v = fmValues(key), btn = document.getElementById('fmbtn-' + key);
+    if (!btn) return;
+    btn.textContent = v.length ? (v.length === 1 ? v[0] : 'Đã chọn ' + v.length) : '— tất cả —';
+    btn.classList.toggle('active', v.length > 0);
+  }
+  function fmSet(key, vals) {
+    vals = vals || [];
+    document.querySelectorAll('#fmpop-' + key + ' input').forEach(function (cb) { cb.checked = vals.indexOf(cb.value) !== -1; });
+    fmUpdate(key);
+  }
+  // Chọn sẵn các option khớp từ khoá (đã bỏ dấu) — dùng cho nút lọc nhanh, không phụ thuộc emoji trong sheet.
+  function fmPick(key, patterns) {
+    var vals = [];
+    document.querySelectorAll('#fmpop-' + key + ' input').forEach(function (cb) {
+      var n = fNorm(cb.value);
+      for (var i = 0; i < patterns.length; i++) if (n.indexOf(patterns[i]) !== -1) { vals.push(cb.value); break; }
+    });
+    fmSet(key, vals);
+    return vals;
+  }
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.fm')) document.querySelectorAll('.fm-pop.show').forEach(function (x) { x.classList.remove('show'); });
+  });
+
+  function noteSelect(id, label) {
+    return '<div class="ff"><label>' + label + '</label><select class="ui-select" id="' + id + '">' +
+      '<option value="">Tất cả</option>' +
+      '<option value="has">Đã có ghi chú phản hồi</option>' +
+      '<option value="empty">Chưa có ghi chú phản hồi</option>' +
+    '</select></div>';
+  }
+
+  function renderFilterForm(o) {
+    document.getElementById('fgridTime').innerHTML =
+      '<div class="ff"><label>Nhận phản hồi TỪ ngày</label><input type="date" class="ui-input" id="fltFrom"></div>' +
+      '<div class="ff"><label>ĐẾN ngày</label><input type="date" class="ui-input" id="fltTo"></div>' +
+      '<div class="ff wide"><label>Tình trạng phản hồi</label><select class="ui-select" id="fltMode" onchange="onModeChange()">' +
+        '<option value="all">Tất cả</option>' +
+        '<option value="inRange">Có mail nhận về trong khoảng ngày</option>' +
+        '<option value="noReply1">Chưa phản hồi — Đợt 1</option>' +
+        '<option value="noReply2">Chưa phản hồi — Đợt 2</option>' +
+        '<option value="noReplyBoth">Chưa phản hồi — cả 2 đợt</option>' +
+        '<option value="declined">Đã từ chối tham dự</option>' +
+      '</select></div>' +
+      '<div class="ff"><label>Từ khoá (tên / đơn vị / email)</label><input type="text" class="ui-input" id="fltKeyword" onkeydown="if(event.key===\'Enter\') runFilter()"></div>';
+
+    document.getElementById('fgridB1').innerHTML =
+      fmBlock('tienDo1', 'Tiến độ liên hệ', o.tienDo1) +
+      fmBlock('xacNhan1', 'Phản hồi tham dự', o.xacNhan1) +
+      noteSelect('fltNote1', 'Ghi chú phản hồi (AL)');
+
+    document.getElementById('fgridB2').innerHTML =
+      fmBlock('tienDo2', 'Tiến độ liên hệ', o.tienDo2) +
+      fmBlock('xacNhan2', 'Phản hồi tham dự', o.xacNhan2) +
+      noteSelect('fltNote2', 'Ghi chú phản hồi (AQ)');
+
+    document.getElementById('fgridProfile').innerHTML =
+      fmBlock('doiTuong', 'Đối tượng', o.doiTuong) +
+      fmBlock('phanLoai', 'Phân loại khách', o.phanLoai) +
+      '<div class="ff"><label>Đài thọ</label><select class="ui-select" id="fltDaiTho">' +
+        '<option value="">Tất cả</option><option value="yes">Có đài thọ</option><option value="no">Không đài thọ</option></select></div>' +
+      fmBlock('kenhMoi', 'Kênh mời', o.kenhMoi) +
+      fmBlock('quocGia', 'Quốc gia', o.quocGia) +
+      fmBlock('linhVuc', 'Lĩnh vực', o.linhVuc) +
+      fmBlock('pic', 'Phụ trách (PIC)', o.pic);
+
+    if (o.missing && o.missing.length) {
+      document.getElementById('filterWarn').innerHTML =
+        '<div class="error-box">Không dò được các cột: <strong>' + escapeHtml(o.missing.join(', ')) +
+        '</strong>. Lọc theo những cột này sẽ luôn ra 0 kết quả — kiểm tra lại tiêu đề dòng 4/5 của sheet TEST.</div>';
+    }
+  }
+
+  // Khi chọn "Chưa phản hồi — Đợt X", tự tick tiến độ "Đã gửi Mail" đúng đợt đó cho khỏi phải chọn tay.
+  function onModeChange() {
+    var mode = document.getElementById('fltMode').value;
+    if (mode === 'noReply1') { fmSet('tienDo2', []); fmPick('tienDo1', ['da gui mail']); }
+    else if (mode === 'noReply2') { fmSet('tienDo1', []); fmPick('tienDo2', ['da gui mail']); }
+    else if (mode === 'noReplyBoth') { fmPick('tienDo1', ['da gui mail']); fmPick('tienDo2', ['da gui mail']); }
+  }
+
+  function collectCriteria() {
+    var c = {
+      from: document.getElementById('fltFrom').value,
+      to: document.getElementById('fltTo').value,
+      replyMode: document.getElementById('fltMode').value,
+      batchJoin: document.getElementById('fltBatchJoin').value,
+      note1: document.getElementById('fltNote1').value,
+      note2: document.getElementById('fltNote2').value,
+      daiTho: document.getElementById('fltDaiTho').value,
+      keyword: document.getElementById('fltKeyword').value
+    };
+    window.WA_FILTER_MULTI.forEach(function (k) { c[k] = fmValues(k); });
+    return c;
+  }
+
+  function ymd(d) {
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+
+  function resetFilter() {
+    if (!window.WA_FILTER_OPTIONS) return;
+    ['fltFrom','fltTo','fltKeyword'].forEach(function (id) { document.getElementById(id).value = ''; });
+    document.getElementById('fltMode').value = 'all';
+    document.getElementById('fltBatchJoin').value = 'and';
+    document.getElementById('fltNote1').value = '';
+    document.getElementById('fltNote2').value = '';
+    document.getElementById('fltDaiTho').value = '';
+    window.WA_FILTER_MULTI.forEach(function (k) { fmSet(k, []); });
+    document.getElementById('filterStats').innerHTML = '';
+    document.getElementById('filterResult').innerHTML = '<div class="empty-state">Chọn điều kiện rồi bấm “Lọc”.</div>';
+  }
+
+  function applyPreset(kind) {
+    if (!window.WA_FILTER_OPTIONS) { initFilterTab(); showToast('Đang tải bộ lọc, bấm lại sau 1 giây.'); return; }
+    resetFilter();
+    if (kind === 'week') {
+      var to = new Date(), from = new Date(); from.setDate(from.getDate() - 6);
+      document.getElementById('fltFrom').value = ymd(from);
+      document.getElementById('fltTo').value = ymd(to);
+      document.getElementById('fltMode').value = 'inRange';
+    } else if (kind === 'resend') {
+      document.getElementById('fltMode').value = 'noReply1';
+      onModeChange();
+      showToast('Đang tính theo Đợt 1 — đổi dropdown “Tình trạng phản hồi” nếu muốn Đợt 2.');
+    } else if (kind === 'contactissue') {
+      document.getElementById('fltBatchJoin').value = 'or';
+      fmPick('tienDo1', ['bi loi', 'chua lien he']);
+      fmPick('tienDo2', ['bi loi', 'chua lien he']);
+    } else if (kind === 'declined') {
+      document.getElementById('fltMode').value = 'declined';
+    }
+    runFilter();
+  }
+
+  function runFilter() {
+    document.getElementById('filterError').innerHTML = '';
+    document.getElementById('filterResult').innerHTML = '<div class="spinner">Đang lọc dữ liệu...</div>';
+    window.WA_LAST_CRITERIA = collectCriteria();
+    gs('WA_filterGuests', window.WA_LAST_CRITERIA).then(renderFilterTable).catch(function (err) {
+      document.getElementById('filterResult').innerHTML = '';
+      showError('filterError', err);
+    });
+  }
+
+  function renderFilterTable(res) {
+    document.getElementById('filterStats').innerHTML =
+      '<strong>' + res.total + '</strong> khách khớp' +
+      (res.hasRange ? ' · <strong>' + res.guestInRange + '</strong> khách có mail nhận về trong khoảng · <strong>' + res.mailInRange + '</strong> mail nhận về' : '') +
+      (res.total > res.shown ? ' · chỉ hiện ' + res.shown + ' dòng đầu, ghi ra sheet để xem đủ' : '');
+
+    var el = document.getElementById('filterResult');
+    if (!res.rows.length) { el.innerHTML = '<div class="empty-state">Không có khách nào khớp bộ lọc.</div>'; return; }
+
+    function pill(v, cls) { return v ? '<span class="fpill' + (cls ? ' ' + cls : '') + '">' + escapeHtml(v) + '</span>' : ''; }
+    function dot(has) { return has ? '<span class="fdot yes">✓</span>' : '<span class="fdot no">—</span>'; }
+    function warnCls(v) { return fNorm(v).indexOf('bi loi') !== -1 || fNorm(v).indexOf('chua lien he') !== -1 ? 'warn' : ''; }
+
+    el.innerHTML = '<div class="ftable-wrap"><table class="ftable"><thead><tr>' +
+      '<th>Mã KM</th><th>Họ tên</th><th>Đơn vị</th><th>PIC</th>' +
+      '<th class="b1">Tiến độ Đ1</th><th class="b1">Tham dự Đ1</th><th class="b1">GC Đ1</th>' +
+      '<th class="b2">Tiến độ Đ2</th><th class="b2">Tham dự Đ2</th><th class="b2">GC Đ2</th>' +
+      '<th>Phản hồi gần nhất</th><th>Mail nhận</th><th>Phân loại</th><th>Đài thọ</th>' +
+      '</tr></thead><tbody>' +
+      res.rows.map(function (r) {
+        return '<tr onclick="jumpToGuest(\'' + r.maKM.replace(/'/g, "\\'") + '\')">' +
+          '<td class="nowrap"><strong>' + escapeHtml(r.maKM) + '</strong></td>' +
+          '<td>' + escapeHtml(r.hoTen) + '</td>' +
+          '<td>' + escapeHtml(r.donVi) + '</td>' +
+          '<td class="nowrap">' + escapeHtml(r.pic) + '</td>' +
+          '<td>' + pill(r.tienDo1, warnCls(r.tienDo1)) + '</td>' +
+          '<td>' + escapeHtml(r.xacNhan1) + '</td>' +
+          '<td>' + dot(r.hasNote1) + '</td>' +
+          '<td>' + pill(r.tienDo2, warnCls(r.tienDo2)) + '</td>' +
+          '<td>' + escapeHtml(r.xacNhan2) + '</td>' +
+          '<td>' + dot(r.hasNote2) + '</td>' +
+          '<td class="nowrap">' + (r.lastReply ? escapeHtml(r.lastReply) : '<span style="color:var(--ink-soft);font-style:italic">chưa có</span>') + '</td>' +
+          '<td class="nowrap">' + (r.replyInRange ? r.replyInRange + '/' : '') + r.replyTotal + '</td>' +
+          '<td>' + pill(r.phanLoai) + '</td>' +
+          '<td>' + (r.daiTho ? '<span class="fpill gold">💰</span>' : '') + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  function exportFilter() {
+    var btn = document.getElementById('btnExportFilter');
+    var label = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = 'Đang ghi sheet…';
+    gs('WA_exportFilterToSheet', window.WA_LAST_CRITERIA || collectCriteria()).then(function (res) {
+      btn.disabled = false; btn.innerHTML = label;
+      showToast('Đã ghi ' + res.count + ' dòng vào sheet "' + res.sheetName + '".');
+      document.getElementById('filterError').innerHTML =
+        '<div class="note-box">Đã tạo sheet <strong>' + escapeHtml(res.sheetName) + '</strong> (' + res.count + ' dòng). ' +
+        '<a class="link" href="' + res.url + '" target="_blank" rel="noopener">Mở sheet ↗</a></div>';
+    }).catch(function (err) {
+      btn.disabled = false; btn.innerHTML = label;
+      showError('filterError', err);
+    });
+  }
+
+  
+  // ---------- KHỞI ĐỘNG ----------
+  loadReplies();  
+  loadProcessing();
+  loadUnknown();
+</script>
+ 
+<!-- Nút tròn góc phải dưới -->
+<button class="mini-lookup-btn" onclick="toggleMiniLookup()" title="Tra cứu nhanh mã KM">
+  🔍
+</button>
+ 
+<!-- Panel tra cứu nhanh -->
+<div class="mini-lookup-panel" id="miniLookupPanel">
+  <h4>Tra cứu nhanh Mã KM</h4>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <input type="text" id="miniSearchName" placeholder="Nhập tên (VD: Nguyễn Văn A)..." onkeyup="if(event.key === 'Enter') runMiniLookup()">
+    <input type="text" id="miniSearchOrg" placeholder="Nhập tổ chức (VD: World Economic Forum)..." onkeyup="if(event.key === 'Enter') runMiniLookup()">
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="runMiniLookup()">Tìm kiếm</button>
+  <div class="mini-results" id="miniResults"></div>
+</div>
+ 
+<script>
+function toggleMiniLookup() {
+  const panel = document.getElementById('miniLookupPanel');
+  panel.classList.toggle('show');
+  if(panel.classList.contains('show')) {
+    document.getElementById('miniSearchName').focus();
+  }
+}
+ 
+function runMiniLookup() {
+  const nameQuery = document.getElementById('miniSearchName').value.trim();
+  const orgQuery = document.getElementById('miniSearchOrg').value.trim();
+  const resDiv = document.getElementById('miniResults');
+  
+  if(!nameQuery && !orgQuery) return; // Không nhập gì thì không tìm
+ 
+  resDiv.innerHTML = '<div style="text-align:center; padding: 10px;">Đang tìm...</div>';
+  
+  // Gửi cả 2 tham số nameQuery và orgQuery xuống backend
+  google.script.run.withSuccessHandler(function(data) {
+    resDiv.innerHTML = '';
+    
+    if (data.exact.length > 0) {
+      renderMiniItems(data.exact, resDiv);
+    } else if (data.fuzzy.length > 0) {
+      resDiv.innerHTML = '<div class="mini-fuzzy-msg">⚠️ Không tìm thấy chính xác. Có phải bạn muốn tìm:</div>';
+      renderMiniItems(data.fuzzy, resDiv);
+    } else {
+      resDiv.innerHTML = '<div style="color:red; text-align:center; padding: 10px;">Không tìm thấy kết quả nào phù hợp.</div>';
+    }
+  }).withFailureHandler(function(err) {
+    resDiv.innerHTML = '<div style="color:red;">Lỗi: ' + err.message + '</div>';
+  }).WA_miniLookup(nameQuery, orgQuery);
+}
+ 
+ 
+</script>
+</body>
+</html>
