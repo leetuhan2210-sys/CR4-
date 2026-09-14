@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEF26 — Demo bố cục 2 cột (bản duyệt trước)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { --teal-900:#12312C; --teal-800:#1B4B43; --teal-700:#26635A; --teal-light:#E4EEEC; --paper:#F5F6F3; --paper-raised:#FFFFFF; --ink:#1F2523; --ink-soft:#5B655F; --line:#DDE2DD; --gold:#A9803F; --gold-soft:#F3E9D6; --gold-dark:#5C4321; --pic-badge:#8A6A2E; --danger:#C0392B; --warn:#D97706; --warn-light:#FEF3C7; --focus:#2E7D6D; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; font-size:14.5px; line-height:1.5; }
+a,button,input,select,textarea { font-family:inherit; }
+:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.wrap { max-width:1280px; margin:0 auto; padding:24px 20px 80px; }
+
+.demo-note { background:#fff; border:1px solid var(--line); border-left:4px solid var(--teal-700); border-radius:10px; padding:14px 18px; margin-bottom:26px; font-size:13.5px; color:var(--ink-soft); }
+.demo-note strong { color:var(--ink); }
+.demo-h { font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--teal-700); margin:34px 0 10px; }
+.demo-h span { color:var(--ink-soft); font-weight:500; letter-spacing:0; }
+
+/* Buttons */
+button.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; border:1px solid transparent; border-radius:6px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s ease; }
+.btn-primary { background:var(--teal-800); color:#fff; } .btn-primary:hover { background:var(--teal-700); }
+.btn-secondary { background:#fff; color:var(--ink); border-color:var(--line); } .btn-secondary:hover { background:var(--paper); border-color:#c9cfc9; }
+.btn-sm { padding:5px 10px; font-size:12px; border-radius:5px; }
+.btn-block { width:100%; padding:10px 16px; font-size:13.5px; }
+.ui-input, .ui-select { width:100%; padding:7px 10px; border:1px solid var(--line); border-radius:6px; font-size:13.5px; background:#fff; color:var(--ink); }
+.ui-input:focus, .ui-select:focus { border-color:var(--focus); }
+
+/* ===================== CARD MAIL 2 CỘT ===================== */
+.mail-card { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); background:var(--paper-raised); border:1px solid var(--line); border-radius:12px; margin-bottom:16px; overflow:hidden; }
+.mail-card__head { grid-column:1/-1; display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 18px; border-bottom:1px solid var(--line); background:linear-gradient(180deg,#FBFCFB,#F5F7F5); }
+.mail-card__head .who { font-size:15px; font-weight:600; color:var(--ink); }
+.mail-card__head .km { font-size:11.5px; font-weight:700; color:var(--teal-800); background:var(--teal-light); border-radius:5px; padding:2px 8px; }
+.mail-card__head .spacer { flex:1; }
+.mail-card__head .when { font-size:12px; color:var(--ink-soft); white-space:nowrap; }
+.thread-link { font-size:11.5px; font-weight:600; color:var(--teal-700); text-decoration:none; white-space:nowrap; }
+.thread-link:hover { text-decoration:underline; }
+
+.mail-card__left { padding:16px 18px; border-right:1px solid var(--line); min-width:0; }
+.mail-card__right { padding:16px 18px; background:#FAFBFA; min-width:0; display:flex; flex-direction:column; }
+@media (max-width:980px) {
+  .mail-card { grid-template-columns:1fr; }
+  .mail-card__left { border-right:none; border-bottom:1px solid var(--line); }
+}
+
+/* Cột trái: dải thông tin khách gọn theo hàng nhãn - giá trị */
+.meta-grid { display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:13px; margin-bottom:12px; }
+.meta-grid dt { color:var(--ink-soft); white-space:nowrap; }
+.meta-grid dd { margin:0; color:var(--ink); overflow-wrap:anywhere; }
+.meta-grid dd strong { font-weight:600; }
+.chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:1px 8px; border-radius:20px; }
+.chip.pic { background:var(--gold-soft); color:var(--gold-dark); }
+.chip.support { background:var(--teal-light); color:var(--teal-800); }
+.chip.km-phu { background:var(--warn-light); color:#92400E; }
+
+.subject-line { font-size:13.5px; font-weight:600; color:var(--ink); margin:2px 0 8px; }
+.mail-body { font-size:13.5px; white-space:pre-wrap; color:var(--ink); background:#fff; border:1px solid #ECF0EC; border-left:3px solid var(--teal-700); border-radius:0 8px 8px 0; padding:10px 12px; max-height:150px; overflow-y:auto; margin-bottom:14px; }
+
+.triage { border-top:1px dashed var(--line); padding-top:12px; }
+.triage-row { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+.triage-row .full { grid-column:1/-1; }
+.fld label { display:block; font-size:11.5px; font-weight:600; color:var(--ink-soft); margin-bottom:3px; }
+
+/* Cột phải: Đợt 1 / Đợt 2 */
+.batch-tabs { display:flex; gap:2px; border-bottom:1px solid var(--line); margin-bottom:12px; }
+.batch-tab { padding:7px 14px; border:none; background:none; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; border-bottom:3px solid transparent; }
+.batch-tab:hover { color:var(--teal-800); }
+.batch-tab.active { color:var(--teal-800); border-bottom-color:var(--teal-800); }
+.batch-pane { display:none; flex:1; }
+.batch-pane.active { display:block; }
+.log-field { position:relative; padding-left:14px; margin-bottom:14px; }
+.log-field::before { content:""; position:absolute; left:0; top:3px; bottom:3px; width:3px; border-radius:2px; }
+.log-field.b1::before { background:#5C8A63; }
+.log-field.b2::before { background:var(--gold); }
+.log-field > label { display:block; font-size:11.5px; font-weight:700; color:var(--ink-soft); margin-bottom:7px; }
+.log-list { display:flex; flex-direction:column; gap:7px; margin-bottom:8px; }
+.log-item { display:flex; gap:9px; font-size:13px; align-items:baseline; }
+.log-item.empty { color:#9BA39D; font-style:italic; font-size:12.5px; }
+.badge-date { flex-shrink:0; font-size:11px; font-weight:700; color:#fff; background:var(--teal-700); border-radius:4px; padding:1px 6px; line-height:1.5; }
+.badge-date.pic { background:var(--pic-badge); }
+.log-text { color:var(--ink); line-height:1.45; overflow-wrap:anywhere; }
+.card-actions { display:flex; gap:8px; margin-top:auto; padding-top:12px; border-top:1px solid var(--line); }
+.card-actions .btn { flex:1; }
+
+/* Card mail chưa xác định */
+.assign-panel { background:#fff; border:1px dashed #D9BE8C; border-radius:8px; padding:14px; }
+.assign-panel h4 { margin:0 0 4px; font-size:13px; color:var(--gold-dark); }
+.assign-panel p { margin:0 0 10px; font-size:12.5px; color:var(--ink-soft); }
+.assign-panel .row { display:flex; gap:8px; }
+.assign-panel .row input { flex:1; }
+
+/* PIC subtabs */
+.pic-subtabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.pic-subtab-btn { padding:7px 14px; border:1px solid var(--line); background:#fff; border-radius:20px; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.pic-subtab-btn.active { background:var(--teal-800); color:#fff; border-color:var(--teal-800); }
+.pic-subtab-count { background:rgba(0,0,0,.12); border-radius:20px; padding:0 7px; font-size:11px; }
+.pic-subtab-btn.active .pic-subtab-count { background:rgba(255,255,255,.25); }
+
+/* ===================== HỒ SƠ KHÁCH (identity 2 cột) ===================== */
+.identity { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:0; background:linear-gradient(155deg,var(--teal-900),var(--teal-800)); color:#F4F6F4; border-radius:12px; overflow:hidden; margin-bottom:18px; }
+@media (max-width:980px) { .identity { grid-template-columns:1fr; } }
+.identity__main { padding:22px 26px; min-width:0; }
+.identity__side { padding:20px 22px; background:rgba(0,0,0,.16); border-left:1px solid rgba(255,255,255,.12); min-width:0; }
+.km-code { font-size:12px; font-weight:600; background:rgba(255,255,255,.14); padding:3px 9px; border-radius:5px; color:#fff; }
+.identity h1 { font-family:'Newsreader',Georgia,serif; font-weight:600; font-style:italic; font-size:27px; margin:10px 0 4px; color:#fff; line-height:1.25; }
+.role-line { font-size:14px; color:#D8E4E0; } .role-line .org { color:#fff; font-weight:500; }
+.classify-row { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 4px; }
+.badge-classify { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; color:#fff; background:#2563EB; }
+.badge-funded { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; background:rgba(255,255,255,.18); color:#fff; border:1px solid rgba(255,255,255,.4); }
+.pic-tag { font-size:11px; font-weight:700; padding:2px 9px; border-radius:20px; background:var(--pic-badge); color:#fff; }
+.identity__side h4 { margin:0 0 10px; font-size:11.5px; font-weight:700; color:#B9CBC5; }
+.identity__side .log-item { color:#F4F6F4; }
+.identity__side .badge-date { background:rgba(255,255,255,.3); color:#12312C; }
+.identity__side .log-add { display:flex; gap:6px; margin-top:8px; }
+.identity__side .log-add input { flex:1; padding:6px 9px; border-radius:6px; border:1px solid rgba(255,255,255,.3); background:rgba(255,255,255,.12); color:#fff; font-size:12.5px; }
+.identity__side .log-add input::placeholder { color:rgba(255,255,255,.55); }
+.identity__side .log-add button { background:rgba(255,255,255,.22); color:#fff; border:none; border-radius:6px; padding:0 12px; font-size:12.5px; font-weight:600; cursor:pointer; }
+.reply-meta { display:flex; gap:18px; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.18); font-size:13px; }
+.reply-meta div span { display:block; font-size:11px; color:#B9CBC5; }
+
+.profile-layout { display:grid; grid-template-columns:minmax(0,380px) minmax(0,1fr); gap:18px; align-items:start; }
+@media (max-width:980px) { .profile-layout { grid-template-columns:1fr; } }
+.panel-card { background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:14px; }
+.panel-card h2 { margin:0 0 12px; font-size:12.5px; font-weight:700; color:var(--ink-soft); }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+.f { display:flex; flex-direction:column; gap:4px; min-width:0; } .f.full { grid-column:1/-1; }
+.f label { font-size:11.5px; font-weight:600; color:var(--ink-soft); }
+.f .val { font-size:13.5px; }
+.detail-tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:16px; }
+.detail-tab-btn { padding:10px 14px; border:none; background:none; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; border-bottom:3px solid transparent; }
+.detail-tab-btn.active { color:var(--teal-800); border-bottom-color:var(--teal-800); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="demo-note">
+  <strong>Bản demo tĩnh</strong> — dữ liệu là giả, chỉ để duyệt bố cục. Ba loại thẻ mail (Phản hồi mới / Mail đang xử lý / Chưa xác định) đều chuyển sang cấu trúc:
+  <strong>hàng tiêu đề chạy ngang</strong> → <strong>cột trái = thông tin &amp; phân loại mail</strong> → <strong>cột phải = Đợt 1 / Đợt 2 (hoặc thao tác gán)</strong>. Các nút Đợt 1/Đợt 2 và tab PIC bấm được để xem hiệu ứng.
+</div>
+
+<!-- ============ 1. PHẢN HỒI MỚI ============ -->
+<div class="demo-h">TAB PHẢN HỒI MỚI <span>— thẻ mail 2 cột</span></div>
+
+<div class="mail-card">
+  <div class="mail-card__head">
+    <span class="who">Hồng Nhật Vy Nguyễn</span>
+    <span class="km">C1</span>
+    <a href="#" class="thread-link">↗ Mở thread trong Gmail</a>
+    <span class="spacer"></span>
+    <span class="when">11/09/2026 · 16:10</span>
+  </div>
+
+  <div class="mail-card__left">
+    <dl class="meta-grid">
+      <dt>Khách mời</dt><dd><strong>Adrian Marcellus</strong></dd>
+      <dt>Đơn vị</dt><dd>Malaysia Centre for the Fourth Industrial Revolution</dd>
+      <dt>Phụ trách</dt><dd><span class="chip pic">👤 Nhật Minh</span> <span class="chip support">🧑‍💼 Tư Hân</span></dd>
+    </dl>
+    <div class="subject-line">Re: Save the Date — The Autumn Economic Forum 2026</div>
+    <div class="mail-body">Okayyy
+
+Thanks for the invitation. I will confirm my attendance with my office and get back to you before the end of this week.</div>
+
+    <div class="triage">
+      <div class="triage-row">
+        <div class="fld"><label>Trạng thái</label>
+          <select class="ui-select"><option>Mới</option><option>Cần follow-up</option><option>Đã xử lý</option></select>
+        </div>
+        <div class="fld"><label>Người xử lý</label>
+          <select class="ui-select"><option>Nhật Minh</option><option>Tư Hân</option></select>
+        </div>
+        <div class="fld full"><label>Ghi chú khách (lưu vào DATA MAIL và hồ sơ khách)</label>
+          <input type="text" class="ui-input" placeholder="Ghi chú (tuỳ chọn)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mail-card__right">
+    <div class="batch-tabs">
+      <button class="batch-tab active" onclick="pickBatch(this,'c1b1')">Đợt 1</button>
+      <button class="batch-tab" onclick="pickBatch(this,'c1b2')">Đợt 2</button>
+    </div>
+
+    <div class="batch-pane active" id="c1b1">
+      <div class="log-field b1">
+        <label>Phản hồi của khách (AL)</label>
+        <div class="log-list"><div class="log-item empty">Chưa có ghi chú nào.</div></div>
+        <input type="text" class="ui-input" placeholder="Thêm phản hồi mới của khách (ghi khi bấm Lưu)…">
+      </div>
+      <div class="log-field b1">
+        <label>Tiến độ làm việc của BTC (AM)</label>
+        <div class="log-list">
+          <div class="log-item"><span class="badge-date pic">22.7</span><span class="log-text">Không thể gửi qua email của BTC</span></div>
+        </div>
+        <input type="text" class="ui-input" placeholder="Thêm tiến độ làm việc của BTC (ghi khi bấm Lưu)…">
+      </div>
+    </div>
+
+    <div class="batch-pane" id="c1b2">
+      <div class="log-field b2">
+        <label>Phản hồi của khách (AQ)</label>
+        <div class="log-list"><div class="log-item empty">Chưa có ghi chú nào.</div></div>
+        <input type="text" class="ui-input" placeholder="Thêm phản hồi mới của khách (ghi khi bấm Lưu)…">
+      </div>
+      <div class="log-field b2">
+        <label>Tiến độ làm việc của BTC (AR)</label>
+        <div class="log-list">
+          <div class="log-item"><span class="badge-date pic">03.9</span><span class="log-text">Đã gửi thư chính thức, chờ phản hồi</span></div>
+        </div>
+        <input type="text" class="ui-input" placeholder="Thêm tiến độ làm việc của BTC (ghi khi bấm Lưu)…">
+      </div>
+    </div>
+
+    <div class="card-actions">
+      <button class="btn btn-primary">💾 Lưu</button>
+      <button class="btn btn-secondary">Xem hồ sơ khách</button>
+    </div>
+  </div>
+</div>
+
+<!-- Thẻ thứ 2: KM phụ, để xem chip cảnh báo -->
+<div class="mail-card">
+  <div class="mail-card__head">
+    <span class="who">Ms. Lina Fauzi (trợ lý)</span>
+    <span class="km">W3.1</span>
+    <span class="chip km-phu">KM phụ của Dato' Rais Hussin</span>
+    <a href="#" class="thread-link">↗ Mở thread trong Gmail</a>
+    <span class="spacer"></span>
+    <span class="when">12/09/2026 · 09:24</span>
+  </div>
+  <div class="mail-card__left">
+    <dl class="meta-grid">
+      <dt>Khách mời</dt><dd><strong>Dato' Rais Hussin</strong></dd>
+      <dt>Đơn vị</dt><dd>MyDigital Corporation</dd>
+      <dt>Phụ trách</dt><dd><span class="chip pic">👤 Wendy</span></dd>
+    </dl>
+    <div class="subject-line">Re: Official Invitation — AEF 2026</div>
+    <div class="mail-body">Dear organisers, on behalf of Dato' Rais, we confirm his attendance on 14 October. Please share the detailed programme when available.</div>
+    <div class="triage">
+      <div class="triage-row">
+        <div class="fld"><label>Trạng thái</label><select class="ui-select"><option>Cần follow-up</option><option>Mới</option><option>Đã xử lý</option></select></div>
+        <div class="fld"><label>Người xử lý</label><select class="ui-select"><option>Wendy</option><option>Nhật Vy</option></select></div>
+        <div class="fld full"><label>Ghi chú khách</label><input type="text" class="ui-input" placeholder="Ghi chú (tuỳ chọn)"></div>
+      </div>
+    </div>
+  </div>
+  <div class="mail-card__right">
+    <div class="batch-tabs">
+      <button class="batch-tab" onclick="pickBatch(this,'c2b1')">Đợt 1</button>
+      <button class="batch-tab active" onclick="pickBatch(this,'c2b2')">Đợt 2</button>
+    </div>
+    <div class="batch-pane" id="c2b1">
+      <div class="log-field b1"><label>Phản hồi của khách (AL)</label>
+        <div class="log-list"><div class="log-item"><span class="badge-date">18.8</span><span class="log-text">Trợ lý xác nhận đã nhận Save the Date</span></div></div>
+        <input type="text" class="ui-input" placeholder="Thêm phản hồi mới của khách…"></div>
+      <div class="log-field b1"><label>Tiến độ làm việc của BTC (AM)</label>
+        <div class="log-list"><div class="log-item empty">Chưa có ghi chú nào.</div></div>
+        <input type="text" class="ui-input" placeholder="Thêm tiến độ làm việc của BTC…"></div>
+    </div>
+    <div class="batch-pane active" id="c2b2">
+      <div class="log-field b2"><label>Phản hồi của khách (AQ)</label>
+        <div class="log-list"><div class="log-item"><span class="badge-date">12.9</span><span class="log-text">Xác nhận tham dự ngày 14/10, cử 1 tuỳ tùng đi cùng</span></div></div>
+        <input type="text" class="ui-input" placeholder="Thêm phản hồi mới của khách…"></div>
+      <div class="log-field b2"><label>Tiến độ làm việc của BTC (AR)</label>
+        <div class="log-list"><div class="log-item"><span class="badge-date pic">12.9</span><span class="log-text">Đã chuyển bộ phận lễ tân xếp chỗ</span></div></div>
+        <input type="text" class="ui-input" placeholder="Thêm tiến độ làm việc của BTC…"></div>
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-primary">💾 Lưu</button>
+      <button class="btn btn-secondary">Xem hồ sơ khách</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 2. MAIL ĐANG XỬ LÝ ============ -->
+<div class="demo-h">TAB MAIL ĐANG XỬ LÝ <span>— tab PIC giữ nguyên, thẻ dùng chung bố cục</span></div>
+
+<div class="pic-subtabs">
+  <button class="pic-subtab-btn active">👤 Nhật Minh <span class="pic-subtab-count">2</span></button>
+  <button class="pic-subtab-btn">👤 Wendy <span class="pic-subtab-count">1</span></button>
+</div>
+
+<div class="mail-card">
+  <div class="mail-card__head">
+    <span class="who">Sarah Chen</span>
+    <span class="km">W1.4</span>
+    <span class="chip pic">Đang xử lý: Tư Hân</span>
+    <a href="#" class="thread-link">↗ Mở thread trong Gmail</a>
+    <span class="spacer"></span>
+    <span class="when">10/09/2026 · 21:03</span>
+  </div>
+  <div class="mail-card__left">
+    <dl class="meta-grid">
+      <dt>Khách mời</dt><dd><strong>Sarah Chen</strong></dd>
+      <dt>Đơn vị</dt><dd>World Economic Forum</dd>
+      <dt>Phụ trách</dt><dd><span class="chip pic">👤 Nhật Minh</span> <span class="chip support">🧑‍💼 Tư Hân</span></dd>
+    </dl>
+    <div class="subject-line">Re: Speaker slot — AEF 2026 opening plenary</div>
+    <div class="mail-body">We would need the final agenda and the moderator's name before confirming. Could you send them by 20 September?</div>
+    <div class="triage">
+      <div class="triage-row">
+        <div class="fld"><label>Trạng thái</label><select class="ui-select"><option>Cần follow-up</option><option>Đã xử lý</option></select></div>
+        <div class="fld"><label>Người xử lý</label><select class="ui-select"><option>Tư Hân</option><option>Nhật Minh</option></select></div>
+        <div class="fld full"><label>Ghi chú khách</label><input type="text" class="ui-input" placeholder="Ghi chú (tuỳ chọn)"></div>
+      </div>
+    </div>
+  </div>
+  <div class="mail-card__right">
+    <div class="batch-tabs">
+      <button class="batch-tab active" onclick="pickBatch(this,'c3b1')">Đợt 1</button>
+      <button class="batch-tab" onclick="pickBatch(this,'c3b2')">Đợt 2</button>
+    </div>
+    <div class="batch-pane active" id="c3b1">
+      <div class="log-field b1"><label>Phản hồi của khách (AL)</label>
+        <div class="log-list"><div class="log-item"><span class="badge-date">05.9</span><span class="log-text">Quan tâm, hỏi thêm về chủ đề phiên</span></div></div>
+        <input type="text" class="ui-input" placeholder="Thêm phản hồi mới của khách…"></div>
+      <div class="log-field b1"><label>Tiến độ làm việc của BTC (AM)</label>
+        <div class="log-list">
+          <div class="log-item"><span class="badge-date pic">10.9</span><span class="log-text">Đã hẹn gửi agenda trước 20/9</span></div>
+          <div class="log-item"><span class="badge-date pic">06.9</span><span class="log-text">Chuyển yêu cầu cho ban nội dung</span></div>
+        </div>
+        <input type="text" class="ui-input" placeholder="Thêm tiến độ làm việc của BTC…"></div>
+    </div>
+    <div class="batch-pane" id="c3b2">
+      <div class="log-field b2"><label>Phản hồi của khách (AQ)</label>
+        <div class="log-list"><div class="log-item empty">Chưa có ghi chú nào.</div></div>
+        <input type="text" class="ui-input" placeholder="Thêm phản hồi mới của khách…"></div>
+      <div class="log-field b2"><label>Tiến độ làm việc của BTC (AR)</label>
+        <div class="log-list"><div class="log-item empty">Chưa có ghi chú nào.</div></div>
+        <input type="text" class="ui-input" placeholder="Thêm tiến độ làm việc của BTC…"></div>
+    </div>
+    <div class="card-actions">
+      <button class="btn btn-primary">💾 Lưu trạng thái &amp; tiến độ</button>
+      <button class="btn btn-secondary">Xem hồ sơ khách</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3. CHƯA XÁC ĐỊNH ============ -->
+<div class="demo-h">TAB CHƯA XÁC ĐỊNH <span>— trái: nội dung mail · phải: gán / bỏ qua</span></div>
+
+<div class="mail-card">
+  <div class="mail-card__head">
+    <input type="checkbox" style="margin:0 4px 0 0">
+    <span class="who">azlan.rahman@mrans.gov.my</span>
+    <a href="#" class="thread-link">↗ Mở thread trong Gmail</a>
+    <span class="spacer"></span>
+    <span class="when">13/09/2026 · 07:41</span>
+  </div>
+  <div class="mail-card__left">
+    <dl class="meta-grid">
+      <dt>Người gửi</dt><dd><strong>Azlan Rahman</strong></dd>
+      <dt>Email</dt><dd>azlan.rahman@mrans.gov.my</dd>
+    </dl>
+    <div class="subject-line">Fwd: Invitation to the Autumn Economic Forum</div>
+    <div class="mail-body">Dear team, I am writing on behalf of the Deputy Minister regarding the invitation forwarded to our office last week…</div>
+  </div>
+  <div class="mail-card__right">
+    <div class="assign-panel">
+      <h4>Gán mail này vào một hồ sơ khách</h4>
+      <p>Nhập Mã KM để chuyển toàn bộ thread sang DATA MAIL. Sau khi gán, các ô Trạng thái / Người xử lý / Đợt 1 – Đợt 2 hiện ngay tại đây.</p>
+      <div class="row">
+        <input type="text" class="ui-input" placeholder="Mã KM (VD: W3.1)">
+        <button class="btn btn-primary">Gán vào hồ sơ</button>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:12.5px;color:var(--ink-soft)">Chưa tìm ra khách? Dùng tra cứu nhanh ở góc phải màn hình, hoặc bỏ qua thread này.</div>
+    <div class="card-actions"><button class="btn btn-secondary btn-block">Bỏ qua thread</button></div>
+  </div>
+</div>
+
+<!-- ============ 4. HỒ SƠ KHÁCH ============ -->
+<div class="demo-h">TAB TRA CỨU — HỒ SƠ KHÁCH <span>— header tách 2 khối, cột trái dùng lưới 2 ô thay vì xếp dọc</span></div>
+
+<div class="identity">
+  <div class="identity__main">
+    <span class="km-code">MÃ KM W3.1</span>
+    <h1>Dato' Rais Hussin</h1>
+    <div class="role-line">Chief Executive Officer, <span class="org">MyDigital Corporation</span></div>
+    <div class="classify-row">
+      <span class="badge-classify">Khách mời</span>
+      <span class="badge-funded">💰 Đài thọ</span>
+      <span class="pic-tag">👤 PIC: Wendy</span>
+      <span class="badge-funded">🧑‍💼 Hỗ trợ: Nhật Vy</span>
+    </div>
+    <div class="reply-meta">
+      <div><span>Phản hồi gần nhất</span>12/09/2026</div>
+      <div><span>Giờ</span>09:24</div>
+      <div><span>Loại thư mời</span>Cả hai đợt</div>
+    </div>
+  </div>
+  <div class="identity__side">
+    <h4>Ghi chú chung</h4>
+    <div class="log-list">
+      <div class="log-item"><span class="badge-date">12.9</span><span class="log-text">Trợ lý Lina là đầu mối chính</span></div>
+      <div class="log-item"><span class="badge-date">18.8</span><span class="log-text">Ưu tiên mời phát biểu phiên buổi chiều</span></div>
+    </div>
+    <div class="log-add"><input type="text" placeholder="Thêm ghi chú mới…"><button>Thêm</button></div>
+  </div>
+</div>
+
+<div class="profile-layout">
+  <div>
+    <div class="panel-card">
+      <h2>Thông tin nội bộ</h2>
+      <div class="grid-2">
+        <div class="f"><label>Phụ trách (PIC)</label><div class="val">Wendy</div></div>
+        <div class="f"><label>Nhân sự hỗ trợ</label><div class="val">Nhật Vy</div></div>
+        <div class="f"><label>Đối tượng</label><div class="val">2. C4IRs</div></div>
+        <div class="f"><label>Kênh mời</label><div class="val">Nội bộ</div></div>
+        <div class="f full"><label>Người mời trực tiếp</label><div class="val">Lãnh đạo Sở KH&amp;CN</div></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <h2>Hồ sơ khách mời</h2>
+      <div class="grid-2">
+        <div class="f"><label>Title</label><div class="val">Dr.</div></div>
+        <div class="f"><label>Full name</label><div class="val">Rais Hussin</div></div>
+        <div class="f full"><label>Position</label><div class="val">Chief Executive Officer</div></div>
+        <div class="f full"><label>Organization</label><div class="val">MyDigital Corporation</div></div>
+        <div class="f"><label>Lĩnh vực</label><div class="val">Chuyển đổi số</div></div>
+        <div class="f"><label>Quốc gia</label><div class="val">Malaysia</div></div>
+      </div>
+    </div>
+    <div class="panel-card">
+      <h2>Liên hệ</h2>
+      <div class="grid-2">
+        <div class="f full"><label>Thư điện tử chính</label><div class="val">rais@mydigital.gov.my</div></div>
+        <div class="f full"><label>Thư điện tử CC phụ</label><div class="val">lina.fauzi@mydigital.gov.my</div></div>
+        <div class="f"><label>Số điện thoại</label><div class="val">+60 3 8000 8000</div></div>
+        <div class="f"><label>Mã Gmail</label><div class="val">1889f2c…</div></div>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="detail-tabs">
+      <button class="detail-tab-btn active">Đợt 1</button>
+      <button class="detail-tab-btn">Đợt 2</button>
+      <button class="detail-tab-btn">Lịch sử mail</button>
+    </div>
+    <div class="panel-card">
+      <h2>Đợt 1 — Thư Save the Date</h2>
+      <div class="grid-2">
+        <div class="f"><label>Phụ trách (PIC)</label><div class="val">Wendy</div></div>
+        <div class="f"><label>Tiến độ liên hệ</label><div class="val">✅ Đã liên hệ</div></div>
+        <div class="f full"><label>Xác nhận tham dự (Save the Date)</label><div class="val">Đã xác nhận tham dự</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+        <div class="log-field b1"><label>Phản hồi của khách</label>
+          <div class="log-list"><div class="log-item"><span class="badge-date">18.8</span><span class="log-text">Trợ lý xác nhận đã nhận thư</span></div></div>
+          <input type="text" class="ui-input" placeholder="Thêm ghi chú mới…"></div>
+        <div class="log-field b1"><label>Tiến độ làm việc của BTC</label>
+          <div class="log-list"><div class="log-item"><span class="badge-date pic">19.8</span><span class="log-text">Gửi lại bản PDF có chữ ký</span></div></div>
+          <input type="text" class="ui-input" placeholder="Thêm ghi chú mới…"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block">💾 Lưu thay đổi vào Trang tính</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+function pickBatch(btn, paneId) {
+  var card = btn.closest('.mail-card__right');
+  card.querySelectorAll('.batch-tab').forEach(function (b) { b.classList.remove('active'); });
+  card.querySelectorAll('.batch-pane').forEach(function (p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById(paneId).classList.add('active');
+}
+</script>
+</body>
+</html>
